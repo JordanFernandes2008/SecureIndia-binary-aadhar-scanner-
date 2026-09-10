@@ -153,17 +153,39 @@ $('certFile').addEventListener('change', async e => {
 });
 $('btnDemoCert').onclick = () => loadCertPEM(DEMO.cert, 'DEMO test key (not UIDAI)');
 
-/* ---------------- camera ---------------- */
+/* ---------------- camera: QR only, keep scanning until a plausible Secure QR ---------------- */
+let camReads = 0, lastShort = '';
+function plausible(text){
+  const t = String(text).trim();
+  if (/^https?:\/\//i.test(t) || t.startsWith('<')) return true;   // other formats: report them
+  return /^\d+$/.test(t) && t.length >= 600;                          // Secure QR: a very long number
+}
 $('btnCam').onclick = async () => {
-  html5qr = new Html5Qrcode('reader', { experimentalFeatures: { useBarCodeDetectorIfSupported: true } });
+  resetDiag(); camReads = 0; lastShort = '';
+  html5qr = new Html5Qrcode('reader', {
+    formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+    verbose: false
+  });
+  const cfg = {
+    fps: 12,
+    qrbox: (vw, vh) => { const s = Math.floor(Math.min(vw, vh) * 0.85); return { width: s, height: s }; },
+    videoConstraints: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 },
+                        focusMode: 'continuous' },
+    disableFlip: true
+  };
   try {
-    await html5qr.start({ facingMode: 'environment' },
-      { fps: 15, qrbox: { width: 320, height: 320 }, aspectRatio: 1.0, disableFlip: false },
-      text => { stopCam(); handleQR(text, 'camera'); }, () => {});
+    await html5qr.start({ facingMode: 'environment' }, cfg, text => {
+      camReads++;
+      if (plausible(text)) { stopCam(); handleQR(text, 'camera'); return; }
+      const t = String(text).trim();
+      if (t !== lastShort) { lastShort = t; diag('ignored short read: ' + t.length + ' chars "' + t.slice(0, 24) + '"'); }
+      status('Read ' + t.length + ' characters \u2014 that is not the Secure QR. Keep the whole QR in the box, 15\u201320 cm away, hold still\u2026');
+    }, () => {});
     $('btnCam').disabled = true; $('btnStop').disabled = false;
-    $('scanStatus').textContent = 'Camera running — fill the box with the QR and hold steady.';
+    status('Camera running \u2014 fill the box with the QR, 15\u201320 cm away, no glare, hold still.');
   } catch (e) {
-    $('scanStatus').innerHTML = '<span style="color:var(--red)">Camera unavailable: ' + e + '</span> (camera needs HTTPS — use the Vercel link, not a local file)';
+    $('scanStatus').innerHTML = '<span style="color:var(--red)">Camera unavailable: ' + e + '</span> (camera needs HTTPS \u2014 use the Vercel link, not a local file)';
   }
 };
 function stopCam(){
@@ -176,21 +198,35 @@ $('btnStop').onclick = stopCam;
 if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc =
   'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
 
-function canvasFrom(img, scale, mode){
-  const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+const yieldUI = () => new Promise(r => setTimeout(r, 0));
+const MAX_SIDE = 1400, MAX_PIX = 2.2e6;
+
+/* downscale once so nothing below ever touches a huge bitmap */
+function baseCanvas(img){
+  const s = Math.min(1, MAX_SIDE / Math.max(img.width, img.height));
+  const w = Math.round(img.width * s), h = Math.round(img.height * s);
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, 0, 0, w, h);
+  diag('working size ' + w + 'x' + h + (s < 1 ? ' (downscaled from ' + img.width + 'x' + img.height + ')' : ''));
+  return c;
+}
+
+function canvasFrom(base, scale, mode){
+  let w = Math.round(base.width * scale), h = Math.round(base.height * scale);
+  if (w * h > MAX_PIX) { const k = Math.sqrt(MAX_PIX / (w * h)); w = Math.round(w * k); h = Math.round(h * k); }
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   const ctx = c.getContext('2d', { willReadFrequently: true });
   ctx.imageSmoothingEnabled = scale < 1; ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(img, 0, 0, w, h);
+  ctx.drawImage(base, 0, 0, w, h);
   if (mode !== 'plain') {
     const id = ctx.getImageData(0, 0, w, h), p = id.data;
-    // grayscale + contrast stretch
     let lo = 255, hi = 0; const g = new Uint8ClampedArray(w * h);
     for (let i = 0, j = 0; i < p.length; i += 4, j++) { const v = (p[i]*299 + p[i+1]*587 + p[i+2]*114) / 1000; g[j] = v; if (v < lo) lo = v; if (v > hi) hi = v; }
     const rng = Math.max(1, hi - lo);
     if (mode === 'threshold') {
-      // Otsu
-      const hist = new Array(256).fill(0); for (const v of g) hist[v|0]++;
+      const hist = new Array(256).fill(0); for (let j = 0; j < g.length; j++) hist[g[j]]++;
       let sum = 0; for (let t = 0; t < 256; t++) sum += t * hist[t];
       let sumB = 0, wB = 0, best = 0, thr = 128, total = g.length;
       for (let t = 0; t < 256; t++) { wB += hist[t]; if (!wB) continue; const wF = total - wB; if (!wF) break;
@@ -205,46 +241,59 @@ function canvasFrom(img, scale, mode){
   return c;
 }
 
-async function tryNative(img){
+let decodeRun = 0;
+function status(t){ $('scanStatus').textContent = t; }
+
+async function tryNative(base, run){
   if (!('BarcodeDetector' in window)) return null;
   try {
     const det = new BarcodeDetector({ formats: ['qr_code'] });
-    for (const scale of [1, 2, 0.5]) {
-      const c = canvasFrom(img, scale, 'plain');
-      const r = await det.detect(c);
+    for (const scale of [1, 0.6, 1.4]) {
+      if (run !== decodeRun) return null;
+      status('Decoding\u2026 native detector ' + scale + 'x'); await yieldUI();
+      const r = await det.detect(canvasFrom(base, scale, 'plain'));
       if (r && r.length && r[0].rawValue) { diag('native BarcodeDetector decoded at ' + scale + 'x'); return r[0].rawValue; }
     }
   } catch (e) { diag('native detector: ' + e.message); }
   return null;
 }
-function tryZXing(img){
+async function tryZXing(base, run){
   if (!window.ZXing) return null;
   const hints = new Map();
   hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
   hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.QR_CODE]);
   const reader = new ZXing.MultiFormatReader(); reader.setHints(hints);
-  for (const scale of [1, 2, 1.5, 3, 0.7]) for (const mode of ['plain', 'contrast', 'threshold']) {
-    const c = canvasFrom(img, scale, mode); if (c.width * c.height > 30e6) continue;
+  const plan = [[1,'plain'],[1,'contrast'],[1,'threshold'],[1.4,'plain'],[1.4,'threshold'],[0.7,'plain'],[0.7,'contrast']];
+  for (const [scale, mode] of plan) {
+    if (run !== decodeRun) return null;
+    status('Decoding\u2026 ZXing ' + scale + 'x ' + mode); await yieldUI();
+    const c = canvasFrom(base, scale, mode);
     const src = new ZXing.HTMLCanvasElementLuminanceSource(c);
-    for (const Bin of [ZXing.HybridBinarizer, ZXing.GlobalHistogramBinarizer]) {
-      try { const res = reader.decode(new ZXing.BinaryBitmap(new Bin(src)), hints);
-        if (res && res.getText()) { diag('ZXing TRY_HARDER decoded at ' + scale + 'x / ' + mode + ' / ' + Bin.name); return res.getText(); }
-      } catch (_) {}
-    }
+    try { const res = reader.decode(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(src)), hints);
+      if (res && res.getText()) { diag('ZXing decoded at ' + scale + 'x / ' + mode); return res.getText(); } } catch (_) {}
   }
   return null;
 }
-function tryJsQR(img){
-  for (const scale of [1, 2, 1.5, 3]) for (const mode of ['plain', 'contrast']) {
-    const c = canvasFrom(img, scale, mode); if (c.width * c.height > 30e6) continue;
+async function tryJsQR(base, run){
+  for (const [scale, mode] of [[1,'plain'],[1,'contrast'],[1.4,'plain'],[0.7,'plain']]) {
+    if (run !== decodeRun) return null;
+    status('Decoding\u2026 jsQR ' + scale + 'x ' + mode); await yieldUI();
+    const c = canvasFrom(base, scale, mode);
     const id = c.getContext('2d').getImageData(0, 0, c.width, c.height);
-    const r = jsQR(id.data, c.width, c.height, { inversionAttempts: 'attemptBoth' });
+    const r = jsQR(id.data, c.width, c.height, { inversionAttempts: 'dontInvert' });
     if (r && r.data) { diag('jsQR decoded at ' + scale + 'x / ' + mode); return r.data; }
   }
   return null;
 }
 async function decodeImage(img){
-  return (await tryNative(img)) || tryZXing(img) || tryJsQR(img);
+  const run = ++decodeRun;
+  const base = baseCanvas(img);
+  const deadline = Date.now() + 25000;
+  for (const fn of [tryNative, tryZXing, tryJsQR]) {
+    if (Date.now() > deadline) { diag('stopped: 25s time limit'); break; }
+    const t = await fn(base, run); if (t) return t;
+  }
+  return null;
 }
 function loadImage(fileOrBlob){
   return new Promise((res, rej) => {
@@ -267,29 +316,30 @@ async function pagesFromPDF(file){
   }
   const imgs = [];
   for (let n = 1; n <= Math.min(pdf.numPages, 2); n++) {
-    const page = await pdf.getPage(n); const vp = page.getViewport({ scale: 3 });
+    const page = await pdf.getPage(n); const v1 = page.getViewport({ scale: 1 }); const vp = page.getViewport({ scale: Math.min(3, 2000 / Math.max(v1.width, v1.height)) });
     const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
     await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
     const img = new Image(); img.src = c.toDataURL('image/png');
     await new Promise(r => img.onload = r); imgs.push(img);
   }
-  diag('PDF rendered ' + imgs.length + ' page(s) at 3x');
+  diag('PDF rendered ' + imgs.length + ' page(s)');
   return imgs;
 }
 
 $('qrFile').addEventListener('change', async e => {
   const f = e.target.files[0]; if (!f) return;
-  $('scanStatus').textContent = 'Decoding… (this can take a few seconds for a dense QR)';
+  decodeRun++; $('scanStatus').textContent = 'Loading image…';
   resetDiag(); diag('file: ' + f.name + ' (' + Math.round(f.size/1024) + ' KB, ' + (f.type || 'unknown type') + ')');
   let text = null;
   try {
     const isPDF = /pdf$/i.test(f.name) || f.type === 'application/pdf';
     const imgs = isPDF ? await pagesFromPDF(f) : [await loadImage(f)];
+    try { const pv = $('reader'); pv.innerHTML = ''; const im = imgs[0].cloneNode(); im.style.maxWidth = '100%'; im.style.border = '1px solid var(--line)'; pv.appendChild(im); } catch(_){}
     for (const img of imgs) { diag('image ' + img.width + 'x' + img.height); text = await decodeImage(img); if (text) break; }
   } catch (err) { diag('error: ' + err.message); }
   if (!text) {
     $('scanStatus').innerHTML = '<span style="color:var(--red);font-weight:bold">No QR could be decoded.</span> ' +
-      'Tried native detector, ZXing (try-harder) and jsQR at several scales with contrast and threshold passes. ' +
+      'Check the preview above actually shows the QR — the picker often selects the most recent photo. ' +
       'Retake closer and straight-on, crop to just the QR, avoid glare. Or use the camera on the live site.';
     showDiag(); return;
   }
