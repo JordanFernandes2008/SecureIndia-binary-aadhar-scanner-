@@ -1,0 +1,11 @@
+# never commit real identity documents
+*.jpg
+*.jpeg
+*.png
+*.pdf
+*.cer
+*.pem
+*.crt
+!screenshots/*.png
+node_modules/
+.DS_Store

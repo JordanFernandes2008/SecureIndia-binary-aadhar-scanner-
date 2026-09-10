@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SecureIndia — Aadhaar Secure QR Verification</title>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsrsasign@11.1.0/lib/jsrsasign-all-min.js"></script>
+<style>
+  :root{
+    --navy:#1F4E79; --blue:#0071C1; --orange:#EB861A; --green:#1D783C;
+    --red:#C0392B; --slate:#44555F; --line:#C3D2DE; --light:#F2F6F9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#fff;color:var(--slate)}
+  header{background:var(--navy);color:#fff;padding:18px 20px}
+  header h1{margin:0;font-size:20px;letter-spacing:-.3px}
+  header p{margin:4px 0 0;font-size:12px;color:#B9CFE2;font-family:"Courier New",monospace}
+  .bar{height:4px;background:var(--orange)}
+  main{max-width:860px;margin:0 auto;padding:18px 16px 60px}
+  .card{border:1px solid var(--line);border-radius:6px;padding:16px;margin-bottom:16px;background:#fff}
+  .card h2{margin:0 0 4px;font-size:12px;font-family:"Courier New",monospace;color:var(--orange);letter-spacing:.5px}
+  .hint{font-size:12.5px;color:#6E7C87;margin:0 0 12px}
+  button{font-family:inherit;font-size:14px;font-weight:bold;border:0;border-radius:4px;
+    padding:11px 16px;cursor:pointer;background:var(--navy);color:#fff;margin:4px 6px 4px 0}
+  button.ghost{background:#fff;color:var(--navy);border:1.5px solid var(--navy)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  input[type=file]{font-size:13px;margin:6px 0}
+  #reader{width:100%;max-width:420px;margin-top:10px}
+  .verdict{border-radius:6px;padding:16px;color:#fff;margin-bottom:14px;display:none}
+  .verdict h3{margin:0 0 4px;font-size:19px}
+  .verdict p{margin:0;font-size:13px;opacity:.92}
+  .ok{background:var(--green)} .bad{background:var(--red)} .warn{background:var(--orange)}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  td{border-bottom:1px solid var(--line);padding:8px 6px;vertical-align:top}
+  td.k{color:#6E7C87;width:38%;font-family:"Courier New",monospace;font-size:12px}
+  td.v{color:var(--navy);font-weight:bold}
+  .steps li{font-size:13px;margin-bottom:6px}
+  .steps .done{color:var(--green);font-weight:bold}
+  .steps .fail{color:var(--red);font-weight:bold}
+  .note{background:var(--light);border-left:4px solid var(--blue);padding:10px 12px;font-size:12.5px}
+  footer{background:var(--blue);color:#fff;font-size:11.5px;padding:10px 16px;text-align:center}
+  code{font-size:12px;background:var(--light);padding:1px 4px;border-radius:3px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>SecureIndia</h1>
+  <p>Aadhaar Secure QR verification &nbsp;·&nbsp; SIH26188 &nbsp;·&nbsp; Team TECHNOVA</p>
+</header>
+<div class="bar"></div>
+
+<main>
+
+  <div class="note" style="margin-bottom:16px">
+    <strong>Nothing is uploaded.</strong> The QR is decoded and the signature is verified
+    entirely inside your browser. No document, image or field ever leaves this device.
+  </div>
+
+  <div class="card">
+    <h2>STEP 1 — UIDAI PUBLIC CERTIFICATE</h2>
+    <p class="hint">Load UIDAI's public certificate once. Download it from uidai.gov.in
+       (Aadhaar Secure QR / offline eKYC documentation) and select the <code>.cer</code>
+       or <code>.pem</code> file here. It stays in this browser.</p>
+    <input type="file" id="certFile" accept=".cer,.pem,.crt,.der">
+    <div id="certStatus" style="font-size:13px;margin-top:8px"></div>
+  </div>
+
+  <div class="card">
+    <h2>STEP 2 — READ THE QR</h2>
+    <p class="hint">Scan the Secure QR on the Aadhaar card with your camera, or upload a
+       photo of it. The QR is dense, so a sharp, close, well-lit image works best.</p>
+    <button id="btnCam">Open camera</button>
+    <button id="btnStop" class="ghost" disabled>Stop camera</button><br>
+    <input type="file" id="qrFile" accept="image/*">
+    <div id="reader"></div>
+    <div id="scanStatus" style="font-size:13px;margin-top:8px"></div>
+  </div>
+
+  <div id="verdict" class="verdict">
+    <h3 id="vTitle"></h3>
+    <p id="vSub"></p>
+  </div>
+
+  <div class="card" id="stepsCard" style="display:none">
+    <h2>VERIFICATION STEPS</h2>
+    <ol class="steps" id="steps"></ol>
+  </div>
+
+  <div class="card" id="fieldsCard" style="display:none">
+    <h2>SIGNED DATA FROM THE QR</h2>
+    <p class="hint">These fields were inside the signed byte stream. If the signature
+       verified, UIDAI issued exactly these values and nothing has been altered.</p>
+    <table id="fields"></table>
+  </div>
+
+</main>
+
+<footer>SecureIndia · Verify first, guess second · Prototype for Smart India Hackathon 2026</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+let uidaiCert = null;
+let html5qr = null;
+
+/* ---------- certificate ---------- */
+$('certFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const buf = new Uint8Array(await f.arrayBuffer());
+    let pem = new TextDecoder().decode(buf);
+    if (!pem.includes('BEGIN CERTIFICATE')) {
+      // DER binary -> PEM
+      let b64 = btoa(String.fromCharCode(...buf));
+      pem = '-----BEGIN CERTIFICATE-----\n' + b64.match(/.{1,64}/g).join('\n') +
+            '\n-----END CERTIFICATE-----';
+    }
+    const x = new X509();
+    x.readCertPEM(pem);
+    uidaiCert = x;
+    $('certStatus').innerHTML =
+      '<span style="color:var(--green);font-weight:bold">Certificate loaded.</span><br>' +
+      '<span style="font-size:12px">Issuer: ' + x.getIssuerString() + '</span>';
+  } catch (err) {
+    uidaiCert = null;
+    $('certStatus').innerHTML =
+      '<span style="color:var(--red);font-weight:bold">Could not read that certificate.</span> ' + err.message;
+  }
+});
+
+/* ---------- camera ---------- */
+$('btnCam').onclick = async () => {
+  html5qr = new Html5Qrcode('reader');
+  try {
+    await html5qr.start({ facingMode: 'environment' },
+      { fps: 10, qrbox: 280 },
+      text => { stopCam(); handleQR(text); },
+      () => {});
+    $('btnCam').disabled = true; $('btnStop').disabled = false;
+    $('scanStatus').textContent = 'Camera running — hold the QR steady and fill the frame.';
+  } catch (e) {
+    $('scanStatus').innerHTML = '<span style="color:var(--red)">Camera unavailable: ' + e + '</span>';
+  }
+};
+function stopCam(){
+  if (html5qr) { html5qr.stop().then(()=>html5qr.clear()).catch(()=>{}); }
+  $('btnCam').disabled = false; $('btnStop').disabled = true;
+}
+$('btnStop').onclick = stopCam;
+
+/* ---------- file upload ---------- */
+$('qrFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  $('scanStatus').textContent = 'Decoding image…';
+  const scanner = new Html5Qrcode('reader', { verbose: false });
+  try {
+    const text = await scanner.scanFile(f, false);
+    handleQR(text);
+  } catch (err) {
+    $('scanStatus').innerHTML =
+      '<span style="color:var(--red)">No QR found in that image.</span> ' +
+      'The Secure QR is dense — try a sharper, closer photo cropped to just the QR.';
+  } finally { try { scanner.clear(); } catch(e){} }
+});
+
+/* ---------- helpers ---------- */
+const steps = [];
+function step(text, state){ steps.push({text, state}); }
+function renderSteps(){
+  $('stepsCard').style.display = 'block';
+  $('steps').innerHTML = steps.map(s =>
+    `<li class="${s.state}">${s.text}</li>`).join('');
+}
+function verdict(cls, title, sub){
+  const v = $('verdict');
+  v.className = 'verdict ' + cls; v.style.display = 'block';
+  $('vTitle').textContent = title; $('vSub').textContent = sub;
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+/* decimal string -> bytes */
+function bigIntToBytes(dec){
+  let n = BigInt(dec);
+  const out = [];
+  while (n > 0n) { out.unshift(Number(n & 255n)); n >>= 8n; }
+  return new Uint8Array(out);
+}
+
+/* split the delimited text fields (0xFF separated) */
+const FIELD_NAMES = ['Version','Email/mobile present','Reference ID','Name','Date of birth',
+  'Gender','Care of','District','Landmark','House','Location','PIN code','Post office',
+  'State','Street','Sub-district','VTC'];
+
+function parseFields(data){
+  const out = []; let start = 0, count = 0;
+  for (let i = 0; i < data.length && count < 17; i++) {
+    if (data[i] === 0xFF) {
+      out.push(new TextDecoder('utf-8').decode(data.slice(start, i)));
+      start = i + 1; count++;
+    }
+  }
+  return { fields: out, photoStart: start };
+}
+
+/* ---------- main flow ---------- */
+async function handleQR(text){
+  steps.length = 0;
+  $('scanStatus').textContent = '';
+  $('fieldsCard').style.display = 'none';
+
+  try {
+    // 1. numeric?
+    if (!/^\d+$/.test(text.trim())) {
+      step('QR decoded, but it is not an Aadhaar Secure QR (expected a numeric byte stream).', 'fail');
+      renderSteps();
+      verdict('warn', 'NOT A SECURE QR',
+        'This QR contains text or a link, not a signed Aadhaar byte stream. Older cards and DigiLocker QRs use a different format.');
+      return;
+    }
+    step('QR decoded — ' + text.length + ' digits read from the code.', 'done');
+
+    // 2. to bytes
+    const raw = bigIntToBytes(text.trim());
+    step('Converted to a byte stream — ' + raw.length + ' bytes.', 'done');
+
+    // 3. gunzip
+    let data;
+    try { data = pako.inflate(raw); }
+    catch (e) { data = raw; step('Stream was not GZIP compressed — continuing with raw bytes.', 'done'); }
+    if (data !== raw) step('GZIP decompressed — ' + data.length + ' bytes of signed data.', 'done');
+
+    // 4. split signature
+    if (data.length < 300) throw new Error('Stream too short to contain a signature.');
+    const signed = data.slice(0, data.length - 256);
+    const sig    = data.slice(data.length - 256);
+    step('Split off the last 256 bytes as UIDAI\u2019s RSA signature.', 'done');
+
+    // 5. fields
+    const { fields, photoStart } = parseFields(signed);
+    const photoLen = signed.length - photoStart;
+    step('Parsed ' + fields.length + ' data fields, plus ' + photoLen + ' bytes of signed photograph.', 'done');
+
+    // 6. verify
+    if (!uidaiCert) {
+      renderSteps();
+      showFields(fields, photoLen);
+      verdict('warn', 'DATA READ — NOT YET VERIFIED',
+        'Load UIDAI\u2019s public certificate in Step 1 to check the signature.');
+      return;
+    }
+
+    const sigHex = Array.from(sig).map(b => b.toString(16).padStart(2,'0')).join('');
+    const sd = new KJUR.crypto.Signature({ alg: 'SHA256withRSA' });
+    sd.init(uidaiCert.getPublicKey());
+    sd.updateHex(Array.from(signed).map(b => b.toString(16).padStart(2,'0')).join(''));
+    const valid = sd.verify(sigHex);
+
+    if (valid) {
+      step('Signature verified against UIDAI\u2019s public key.', 'done');
+      renderSteps(); showFields(fields, photoLen);
+      verdict('ok', 'VERIFIED',
+        'UIDAI issued exactly these bytes and nothing has been altered since. Next: check that the printed details on the card match the fields below.');
+    } else {
+      step('Signature did NOT verify — the data does not match UIDAI\u2019s signature.', 'fail');
+      renderSteps(); showFields(fields, photoLen);
+      verdict('bad', 'HIGH RISK — SIGNATURE INVALID',
+        'The signed data has been altered, or this QR was not issued by UIDAI. Route to an officer for manual review.');
+    }
+  } catch (err) {
+    step('Processing failed: ' + err.message, 'fail');
+    renderSteps();
+    verdict('warn', 'COULD NOT PROCESS', err.message);
+  }
+}
+
+function showFields(fields, photoLen){
+  $('fieldsCard').style.display = 'block';
+  let html = '';
+  fields.forEach((v, i) => {
+    if (!v) return;
+    html += `<tr><td class="k">${FIELD_NAMES[i] || 'Field ' + i}</td><td class="v">${v}</td></tr>`;
+  });
+  html += `<tr><td class="k">Photograph</td><td class="v">${photoLen} bytes present (JPEG2000 — signed by UIDAI)</td></tr>`;
+  $('fields').innerHTML = html;
+}
+</script>
+</body>
+</html>
