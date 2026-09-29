@@ -14,8 +14,14 @@ function limited(ip) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Use POST' });
   let body = req.body;
+  if (req.method === 'GET') {
+    // GET /api/analyze?q=...&mode=keyword — shareable check links and simple testing.
+    const u = new URL(req.url, 'http://x');
+    body = { input: u.searchParams.get('q') || '', mode: u.searchParams.get('mode') || '' };
+  } else if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Use GET or POST' });
+  }
   if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = {}; } }
   const input = String((body && body.input) || '').trim();
   if (input.length < 8) return res.status(400).json({ error: 'Paste a news claim, article text, or a link.' });
