@@ -91,3 +91,55 @@ test('real data: official government source corroborates a real announcement', (
   ]);
   assert.equal(r.verdict.label, 'likely true');
 });
+
+import { parseBingRSS, parseGDELT, keywordSearch } from '../lib/newsSearch.js';
+
+const BING = `<rss><channel>
+<item><title>No GST on UPI payments above Rs 2,000, clarifies finance ministry</title>
+<link>http://www.bing.com/news/apiclick.aspx?ref=FexRss&amp;aid=&amp;tid=x&amp;url=https%3a%2f%2fwww.thehindu.com%2fbusiness%2fupi-gst%2farticle1.ece&amp;c=1&amp;mkt=en-in</link>
+<description>The ministry said reports of GST on UPI transactions over Rs 2,000 are false.</description>
+<pubDate>Fri, 18 Apr 2025 10:00:00 GMT</pubDate><News:Source>The Hindu</News:Source></item>
+</channel></rss>`;
+
+const GDELT = JSON.stringify({ articles: [
+  { url: 'https://www.pib.gov.in/PressRelease.aspx?id=1', title: 'Claims of GST on UPI transactions over Rs 2000 are false and baseless',
+    seendate: '20250418T093000Z', domain: 'pib.gov.in', language: 'English' },
+  { url: 'https://example.fr/x', title: 'Article en français', seendate: '20250418T093000Z', domain: 'example.fr', language: 'French' },
+]});
+
+test('Bing RSS: real article URL is unwrapped from the click-tracker', () => {
+  const [it] = parseBingRSS(BING);
+  assert.equal(it.url, 'https://www.thehindu.com/business/upi-gst/article1.ece');
+  assert.equal(it.outlet, 'The Hindu');
+});
+
+test('GDELT: parses articles, drops other languages, converts dates', () => {
+  const items = parseGDELT(GDELT);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].outlet, 'pib.gov.in');
+  assert.equal(items[0].date, '2025-04-18T09:30:00Z');
+});
+
+test('keyword scan still works when Google News returns 503', async () => {
+  const real = globalThis.fetch;
+  globalThis.fetch = async url => {
+    const u = String(url);
+    if (u.includes('news.google.com')) return new Response('Service Unavailable', { status: 503 });
+    if (u.includes('bing.com')) return new Response(BING, { status: 200 });
+    if (u.includes('gdeltproject')) return new Response(GDELT, { status: 200 });
+    throw new Error('unexpected ' + u);
+  };
+  try {
+    const r = await keywordSearch('upi tax for over 2000');
+    assert.ok(r.stories.length >= 1);
+    assert.ok(r.stories.flatMap(s => s.sources).some(s => s.url.includes('thehindu.com')));
+    assert.equal(r.verdict.label, 'likely false or misleading');
+  } finally { globalThis.fetch = real; }
+});
+
+test('keyword scan gives a clear error only when every source fails', async () => {
+  const real = globalThis.fetch;
+  globalThis.fetch = async () => new Response('nope', { status: 503 });
+  try { await assert.rejects(keywordSearch('upi tax for over 2000'), /All news sources are unreachable/); }
+  finally { globalThis.fetch = real; }
+});
