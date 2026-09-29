@@ -41,7 +41,9 @@ test('fact-check coverage flips verdict', () => {
   const fc = parseRSS(`<rss>${item('Fact Check: viral claim of Rs 5000 for every citizen is fake', 'Alt News', 'https://altnews.in/f')}</rss>`);
   const r = buildReport('q', [], fc);
   assert.equal(r.verdict.label, 'likely false or misleading');
-  assert.equal(r.factChecks.length, 1);
+  assert.equal(r.stories[0].sources[0].factCheck, true);
+  // Already listed under the story, so not repeated in the separate fact-check list.
+  assert.equal(r.factChecks.length, 0);
 });
 
 test('empty search is unverified', () => {
