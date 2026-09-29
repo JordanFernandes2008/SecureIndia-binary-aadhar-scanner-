@@ -1,92 +1,59 @@
-# SecureIndia
+# SecureIndia — Fake News Check
 
-Aadhaar Secure QR verification — a working slice of the SIH26188 prototype.
-Team TECHNOVA · Smart India Hackathon 2026.
+Team TECHNOVA · Smart India Hackathon 2026 (SIH26188).
+
+A free, public tool: paste any news, a WhatsApp forward or a link, and
+SecureIndia scans the web and tells you what is actually being reported.
 
 ## What it does
 
-Reads the Secure QR printed on an Aadhaar card and verifies UIDAI's RSA
-signature over the data. If the signature verifies, UIDAI issued exactly
-those bytes and nothing has been altered since.
+1. **Takes anything** — an article link, a headline, or a whole forwarded message.
+2. **Scans the web** — news sites, official government sources (PIB, RBI,
+   ministries) and fact-checkers (Alt News, BOOM, Factly, PIB Fact Check…).
+3. **Merges duplicates** — many articles saying the same thing become **one
+   story with one debrief**, listing every link where it was found. No link is
+   shown twice.
+4. **Splits separate stories** — if the news contains two or more different
+   stories, each gets its own card, debrief and links.
+5. **Gives a verdict** — likely true, likely false or misleading, disputed, or
+   unverified, with the reasoning and warning signs in the message.
 
-**Everything happens in the browser.** No server, no upload, no database
-call, no API key. The document never leaves the device.
+Every check has a shareable link (`/?q=…`) and a WhatsApp share button.
 
-## How the verification works
+## Two scan modes
 
-1. The QR decodes to a long decimal number — a byte stream, not text.
-   (This is why ordinary QR apps show nothing useful.)
-2. Convert the number to bytes and GZIP-decompress it.
-3. The last 256 bytes are UIDAI's RSA signature. Everything before is the
-   signed data.
-4. Hash the signed data with SHA-256 and verify the signature against
-   UIDAI's published public certificate.
-5. Only after the signature verifies do we parse the fields — name, DOB,
-   gender, address, and the signed photograph.
+Chosen automatically on the server:
 
-Change one character anywhere in the data and the hash changes, so the
-signature no longer matches. A forger cannot produce a valid signature
-without UIDAI's private key, which only UIDAI holds.
+- **Deep AI scan** — set `ANTHROPIC_API_KEY` in Vercel → Project → Settings →
+  Environment Variables (tick Production and Preview). Claude searches the live
+  web, reads the link, groups coverage into stories and writes the debriefs.
+  Any source URL Claude did not actually retrieve is dropped before it reaches
+  the page. Each check costs money (model tokens plus web searches), so the
+  endpoint is rate-limited per IP (`RATE_LIMIT_PER_MIN`, default 6).
+- **Keyword scan** (no key) — Google News search, grouped by headline
+  similarity, with a rule-based verdict. Free, but cruder: it matches words, it
+  does not read the articles.
 
-## Setup
+The verdict is an evidence summary, not a ruling. Always open the sources.
 
-You need UIDAI's public certificate. Download it from uidai.gov.in
-(Aadhaar Secure QR / offline eKYC documentation) and load it in Step 1
-of the app. It is stored only in your browser session.
+## Files
 
-## Fake news check (`news.html`)
+- `index.html` — the whole frontend (no build step)
+- `api/analyze.js` — serverless function, `POST {input}` or `GET ?q=`
+- `lib/claudeAnalyze.js` — deep scan
+- `lib/newsSearch.js` — keyword scan, story grouping and verdict rules
+- `test/` — `npm test`
 
-Paste a forwarded message, headline, article or link. The server searches
-the web, merges articles that report the same thing into **one story with
-one debrief**, and lists every link where that story was found. If the
-input contains several different stories, each gets its own card, debrief
-and links. Fact-checks found are listed separately.
+## Run locally
 
-Two modes, chosen automatically on the server:
-
-- **Deep mode** (set `ANTHROPIC_API_KEY` in Vercel -> Project -> Settings ->
-  Environment Variables). Claude searches the live web, reads the link,
-  groups coverage into stories and writes the debriefs. Any source URL
-  Claude did not actually retrieve is dropped before it reaches the page.
-  Each check costs money (model tokens plus web searches), so the endpoint
-  is rate-limited per IP (`RATE_LIMIT_PER_MIN`, default 6).
-- **Keyword mode** (no key). Google News search, grouped by headline
-  similarity, with a rule-based verdict. Free, but cruder: it matches
-  words, it does not understand the claim.
-
-The verdict is an evidence summary, not a ruling. Always open the links.
-
-Run locally: `npm install && npm run dev`, then open
-http://localhost:3000/news.html. Tests: `npm test`.
+```
+npm install
+npm run dev     # http://localhost:3000
+npm test
+```
 
 ## Deploy to Vercel
 
-1. Push this folder to a GitHub repository.
-2. In Vercel: **Add New → Project → Import** the repo.
-3. Framework preset: **Other**. No build command. Output directory: `./`
-4. Optional: add `ANTHROPIC_API_KEY` for deep fake-news analysis.
-5. Deploy.
-
-The Aadhaar page is fully static. The fake news page uses one serverless
-function, `api/analyze.js`.
-
-## Known limitations
-
-- The Secure QR is dense. Blurry photos and photocopies often fail to
-  decode — this is an image quality limit, not a fraud signal.
-- The signed photograph is JPEG2000, which browsers cannot render. We
-  report its presence and size rather than displaying it.
-- Older Aadhaar cards use a plain-text XML QR with no signature. Those
-  are detected and reported as unverifiable.
-- DigiLocker QRs use a different format and are verified through
-  DigiLocker's own endpoint, not this flow.
-- A valid signature proves the **document** is genuine. It does not
-  prove the person presenting it is the holder — that requires matching
-  the signed photograph against the person, which is the next phase.
-
-## Not implemented yet
-
-- OCR cross-check of printed card text against the signed QR fields
-- Face match against the signed photograph
-- AI forensics track for unsigned documents
-- Officer dashboard and audit log
+Import the repo, framework preset **Other**, no build command. Optionally add
+`ANTHROPIC_API_KEY`. `vercel.json` gives the function up to 120 s; lower it if
+your plan does not allow that.
