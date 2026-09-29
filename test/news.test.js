@@ -143,3 +143,24 @@ test('keyword scan gives a clear error only when every source fails', async () =
   try { await assert.rejects(keywordSearch('upi tax for over 2000'), /All news sources are unreachable/); }
   finally { globalThis.fetch = real; }
 });
+
+test('regression: unrelated fact-checks do not turn a true story false', () => {
+  const r = buildReport('RBI keeps repo rate unchanged', [
+    real('RBI keeps repo rate unchanged at 5.25%, reduces GDP growth projection', 'https://newsonair.gov.in/a'),
+    real('RBI keeps repo rate unchanged at 6.5 percent', 'https://www.business-standard.com/b'),
+    real('RBI MPC update: Central bank keeps repo rate unchanged at 5.25%', 'https://www.businesstoday.in/c'),
+  ], [
+    real('Fact Check: Old video of Mumbai floods falsely shared as recent', 'https://www.altnews.in/n1'),
+    real('Fact Check: Viral image of PM Modi with celebrity is morphed', 'https://www.boomlive.in/n2'),
+  ]);
+  assert.equal(r.verdict.label, 'likely true');
+  assert.ok(!r.stories.some(s => s.status === 'false'));
+});
+
+test('regression: ordinary words like "no" or "fact check" are not a debunk', () => {
+  const r = buildReport('No change in repo rate RBI', [
+    real('No change in repo rate, RBI holds at 5.25%', 'https://www.pib.gov.in/x'),
+    real('Fact check: Yes, RBI did keep the repo rate unchanged', 'https://www.boomlive.in/y'),
+  ]);
+  assert.notEqual(r.verdict.label, 'likely false or misleading');
+});
