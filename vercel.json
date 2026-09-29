@@ -1,0 +1,8 @@
+{
+  "functions": {
+    "api/analyze.js": { "maxDuration": 120 }
+  },
+  "redirects": [
+    { "source": "/news.html", "destination": "/", "permanent": false }
+  ]
+}

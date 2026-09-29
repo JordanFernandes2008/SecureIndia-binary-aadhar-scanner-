@@ -3,485 +3,593 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SecureIndia — Aadhaar Secure QR Verification</title>
-<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jsrsasign@11.1.0/lib/jsrsasign-all-min.js"></script>
+<title>SecureIndia — Fake News Check</title>
+<meta name="description" content="Paste any news, forward or link. SecureIndia scans the web, merges articles that say the same thing, and shows one debrief per story with every source.">
+<meta name="theme-color" content="#131C3F">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans+Devanagari:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root{--navy:#1F4E79;--blue:#0071C1;--orange:#EB861A;--green:#1D783C;--red:#C0392B;
-        --slate:#44555F;--line:#C3D2DE;--light:#F2F6F9;--grey:#6E7C87}
+  :root{
+    --ink:#131C3F; --ink-2:#1F2B5C; --saffron:#E8871E; --saffron-ink:#9A4F00;
+    --bg:#F4F5F8; --surface:#FFFFFF; --surface-2:#EEF0F5; --line:#DADEE8;
+    --text:#131722; --muted:#586174; --link:#1F4FB8;
+    --true:#18794E; --true-bg:#E3F4EA; --false:#B42318; --false-bg:#FDE8E6;
+    --mixed:#9A5B00; --mixed-bg:#FDF1DD; --unk:#475467; --unk-bg:#EAECF0;
+    --official:#1F4FB8; --factcheck:#7A2E98; --established:#18794E; --other:#98A2B3;
+    --radius:10px; --shadow:0 1px 2px rgba(19,28,63,.06),0 4px 16px rgba(19,28,63,.06);
+    --sans:"IBM Plex Sans","IBM Plex Sans Devanagari",system-ui,sans-serif;
+    --display:"IBM Plex Sans Condensed","IBM Plex Sans",system-ui,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,monospace;
+    --ease:cubic-bezier(.2,.7,.2,1);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0D1226; --surface:#151B34; --surface-2:#1C2442; --line:#2A3458;
+      --text:#E8EBF5; --muted:#A3ABC4; --link:#8DB1FF; --saffron-ink:#F4A650;
+      --true:#4CC38A; --true-bg:#12301F; --false:#FF7A6E; --false-bg:#3A1714;
+      --mixed:#F3B454; --mixed-bg:#35270E; --unk:#B4BCD0; --unk-bg:#232B45;
+      --official:#8DB1FF; --factcheck:#D39BEF; --established:#4CC38A; --other:#5E6887;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0D1226; --surface:#151B34; --surface-2:#1C2442; --line:#2A3458;
+    --text:#E8EBF5; --muted:#A3ABC4; --link:#8DB1FF; --saffron-ink:#F4A650;
+    --true:#4CC38A; --true-bg:#12301F; --false:#FF7A6E; --false-bg:#3A1714;
+    --mixed:#F3B454; --mixed-bg:#35270E; --unk:#B4BCD0; --unk-bg:#232B45;
+    --official:#8DB1FF; --factcheck:#D39BEF; --established:#4CC38A; --other:#5E6887;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);
+  }
   *{box-sizing:border-box}
-  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#fff;color:var(--slate)}
-  header{background:var(--navy);color:#fff;padding:18px 20px}
-  header h1{margin:0;font-size:20px}
-  header p{margin:4px 0 0;font-size:12px;color:#B9CFE2;font-family:"Courier New",monospace}
-  .bar{height:4px;background:var(--orange)}
-  main{max-width:880px;margin:0 auto;padding:18px 16px 60px}
-  .card{border:1px solid var(--line);border-radius:6px;padding:16px;margin-bottom:16px;background:#fff}
-  .card h2{margin:0 0 4px;font-size:12px;font-family:"Courier New",monospace;color:var(--orange);letter-spacing:.5px}
-  .hint{font-size:12.5px;color:var(--grey);margin:0 0 12px;line-height:1.45}
-  button{font-family:inherit;font-size:14px;font-weight:bold;border:0;border-radius:4px;
-    padding:11px 16px;cursor:pointer;background:var(--navy);color:#fff;margin:4px 6px 4px 0}
-  button.ghost{background:#fff;color:var(--navy);border:1.5px solid var(--navy)}
-  button.warn{background:var(--orange)}
-  button:disabled{opacity:.45;cursor:not-allowed}
-  input[type=file]{font-size:13px;margin:6px 0}
-  textarea{width:100%;min-height:70px;font-family:"Courier New",monospace;font-size:11.5px;
-    border:1px solid var(--line);border-radius:4px;padding:8px}
-  #reader{width:100%;max-width:440px;margin-top:10px}
-  .verdict{border-radius:6px;padding:16px;color:#fff;margin-bottom:14px;display:none}
-  .verdict h3{margin:0 0 4px;font-size:19px}
-  .verdict p{margin:0;font-size:13px;opacity:.94;line-height:1.45}
-  .ok{background:var(--green)}.bad{background:var(--red)}.amber{background:var(--orange)}.grey{background:var(--slate)}
-  table{width:100%;border-collapse:collapse;font-size:13.5px}
-  td{border-bottom:1px solid var(--line);padding:8px 6px;vertical-align:top;word-break:break-word}
-  td.k{color:var(--grey);width:38%;font-family:"Courier New",monospace;font-size:12px}
-  td.v{color:var(--navy);font-weight:bold}
-  .steps{padding-left:20px;margin:0}
-  .steps li{font-size:13px;margin-bottom:6px;line-height:1.4}
-  .steps .done{color:var(--green);font-weight:bold}
-  .steps .fail{color:var(--red);font-weight:bold}
-  .steps .info{color:var(--slate)}
-  .note{background:var(--light);border-left:4px solid var(--blue);padding:10px 12px;font-size:12.5px;line-height:1.45}
-  .diag{font-family:"Courier New",monospace;font-size:11.5px;background:#0D1B2A;color:#CFE3F5;
-        padding:10px;border-radius:4px;white-space:pre-wrap;word-break:break-all;max-height:220px;overflow:auto}
-  .pill{display:inline-block;font-size:11px;font-family:"Courier New",monospace;padding:2px 7px;border-radius:3px;
-        background:var(--light);color:var(--navy);margin-left:6px;border:1px solid var(--line)}
-  footer{background:var(--blue);color:#fff;font-size:11.5px;padding:10px 16px;text-align:center}
-  code{font-size:12px;background:var(--light);padding:1px 4px;border-radius:3px}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;font-family:var(--sans);font-size:16px;line-height:1.55;background:var(--bg);color:var(--text)}
+  a{color:var(--link)}
+  :focus-visible{outline:3px solid var(--saffron);outline-offset:2px;border-radius:4px}
+  .skip{position:absolute;left:-999px;top:8px;background:var(--surface);color:var(--text);padding:8px 12px;z-index:10}
+  .skip:focus{left:8px}
+  .wrap{max-width:860px;margin:0 auto;padding:0 16px}
+  .wrap.wide{max-width:1080px}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+  /* ---------- Masthead ---------- */
+  .mast{background:var(--ink);color:#fff;border-bottom:4px solid var(--saffron)}
+  .mast .top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0}
+  .brand{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none;font-family:var(--display);font-weight:700;font-size:20px;letter-spacing:.2px}
+  .brand svg{flex:none}
+  .mast nav{display:flex;gap:4px;align-items:center}
+  .mast nav a{color:#C9D2F0;text-decoration:none;font-size:14px;padding:10px;border-radius:6px;min-height:44px;display:inline-flex;align-items:center}
+  .mast nav a[aria-current="page"]{color:#fff;background:var(--ink-2)}
+  .iconbtn{background:transparent;border:1px solid #3A477A;color:#fff;border-radius:6px;width:44px;height:44px;display:inline-grid;place-items:center;cursor:pointer}
+  .hero{padding:26px 0 36px}
+  .kicker{font-family:var(--mono);font-size:12px;letter-spacing:1.2px;text-transform:uppercase;color:var(--saffron)}
+  .hero h1{font-family:var(--display);font-weight:700;font-size:clamp(30px,6vw,46px);line-height:1.08;margin:8px 0 10px;letter-spacing:-.3px}
+  .hero p{margin:0;color:#C9D2F0;max-width:580px;font-size:16.5px}
+  .how{display:flex;flex-wrap:wrap;gap:8px 18px;margin:18px 0 0;padding:0;list-style:none;font-size:13.5px;color:#DDE3F7}
+  .how li{display:flex;align-items:center;gap:7px}
+  .hero-grid{display:grid;gap:28px}
+  @media (min-width:900px){.hero-grid{grid-template-columns:1.1fr .9fr;align-items:center;padding-bottom:44px}}
+
+  /* Signature: many articles merge into one story */
+  .merge{display:none}
+  @media (min-width:900px){.merge{display:grid;grid-template-columns:1fr 40px 1.05fr;align-items:center;gap:10px}}
+  .pile{display:grid;gap:8px}
+  .art{display:grid;grid-template-columns:26px 1fr;gap:5px 10px;align-items:center;background:rgba(255,255,255,.05);border:1px solid #2E3A6B;border-radius:8px;padding:9px 10px;
+    opacity:0;animation:slidein .55s var(--ease) forwards}
+  .art .av{grid-row:span 2;width:26px;height:26px;font-size:12px;border-radius:6px}
+  .art .ln{height:6px;border-radius:3px;background:#3A477A}
+  .art .ln.s{width:62%}
+  .art:nth-child(1){animation-delay:.1s}.art:nth-child(2){animation-delay:.22s}.art:nth-child(3){animation-delay:.34s}.art:nth-child(4){animation-delay:.46s}
+  .merge .into{color:var(--saffron);opacity:0;animation:fade .4s ease .7s forwards}
+  .one{background:#fff;color:var(--ink);border-radius:12px;padding:14px 14px 12px;box-shadow:0 14px 34px rgba(0,0,0,.4);opacity:0;animation:pop .6s var(--ease) .85s forwards}
+  .one .ttl{font-family:var(--display);font-weight:700;font-size:17px;line-height:1.2;margin:9px 0 8px}
+  .one .ln{height:6px;border-radius:3px;background:#DADEE8;margin:6px 0}
+  .one .ln.s{width:55%}
+  .one .avs{display:flex;padding-left:6px;margin-top:10px}
+  .one .avs span{width:24px;height:24px;border-radius:50%;border:2px solid #fff;margin-left:-6px;display:grid;place-items:center;font-size:10.5px;color:#fff;font-weight:700;font-family:var(--display)}
+  .one .cap{font-family:var(--mono);font-size:10.5px;color:#586174;margin-top:9px;text-transform:uppercase;letter-spacing:.6px}
+  .one .stamp{font-size:10px}
+  @keyframes slidein{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}}
+  @keyframes pop{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+  @keyframes fade{to{opacity:1}}
+
+  .how b{font-family:var(--mono);font-weight:600;color:var(--ink);background:var(--saffron);border-radius:50%;width:20px;height:20px;display:inline-grid;place-items:center;font-size:11px}
+
+  /* ---------- Composer ---------- */
+  .composer{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px;margin-top:-22px;position:relative}
+  .composer label{font-weight:600;font-size:15px;display:block;margin-bottom:8px}
+  textarea{width:100%;min-height:128px;resize:vertical;font:inherit;font-size:16px;color:var(--text);background:var(--surface-2);
+    border:1.5px solid var(--line);border-radius:var(--radius);padding:12px 14px;line-height:1.5}
+  textarea::placeholder{color:var(--muted)}
+  textarea:focus{border-color:var(--saffron);outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--saffron) 30%,transparent)}
+  .row{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:12px}
+  .detect{font-family:var(--mono);font-size:12px;color:var(--muted);margin-right:auto;display:flex;align-items:center;gap:6px;min-height:20px}
+  .detect .dot{width:8px;height:8px;border-radius:50%;background:var(--other);flex:none}
+  .detect.link .dot{background:var(--official)} .detect.text .dot{background:var(--saffron)}
+  .btn{font:inherit;font-weight:600;font-size:15px;border-radius:8px;min-height:46px;padding:0 18px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;border:1.5px solid transparent;transition:transform .15s var(--ease),background .15s;text-decoration:none}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{background:var(--ink);color:#fff}
+  :root[data-theme="dark"] .btn.primary{background:var(--saffron);color:#1B1300}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn.primary{background:var(--saffron);color:#1B1300}}
+  .btn.primary:hover{filter:brightness(1.12)}
+  .btn.ghost{background:transparent;color:var(--text);border-color:var(--line)}
+  .btn.ghost:hover{background:var(--surface-2)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .examples{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .examples > span{font-size:13px;color:var(--muted);margin-right:2px}
+  .chip{font:inherit;font-size:13.5px;background:var(--surface-2);color:var(--text);border:1px solid var(--line);border-radius:999px;padding:8px 13px;cursor:pointer;min-height:40px;text-align:left}
+  .chip:hover{border-color:var(--saffron)}
+  .recent{margin-top:10px}
+
+  /* ---------- Status / loading ---------- */
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:18px;margin-top:18px}
+  .loading ol{list-style:none;margin:10px 0 0;padding:0}
+  .loading li{display:flex;gap:10px;align-items:center;padding:7px 0;color:var(--muted);font-size:14.5px}
+  .loading li.on{color:var(--text);font-weight:500}
+  .loading li i{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);flex:none}
+  .loading li.on i{border-color:var(--saffron);border-top-color:transparent;animation:spin .9s linear infinite}
+  .loading li.done i{background:var(--true);border-color:var(--true)}
+  .elapsed{font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .skel{border-top:1px solid var(--line);margin-top:14px;padding-top:4px}
+  .sk{height:12px;border-radius:6px;margin:12px 0;background:linear-gradient(90deg,var(--surface-2) 25%,var(--line) 50%,var(--surface-2) 75%);background-size:200% 100%;animation:shimmer 1.3s linear infinite}
+  .sk.h{height:20px;width:72%}.sk.s{width:46%}
+  @keyframes shimmer{to{background-position:-200% 0}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .error{border-color:var(--false);background:var(--false-bg)}
+  .error h2{color:var(--false);margin:0 0 4px;font-size:17px}
+
+  /* ---------- Signature: the merge funnel ---------- */
+  .funnel{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;margin:26px 0 12px}
+  .funnel .n{font-family:var(--display);font-weight:700;font-size:clamp(34px,8vw,52px);line-height:1;color:var(--text)}
+  .funnel .l{font-size:13px;color:var(--muted);margin-top:4px}
+  .funnel .arrow{display:flex;flex-direction:column;align-items:center;color:var(--muted);font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.8px;text-align:center}
+  .funnel .arrow svg{width:64px;height:34px}
+  .funnel .right{text-align:right}
+  .funnel .right .n{color:var(--saffron-ink)}
+  .mode{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 10px}
+
+  /* ---------- Verdict ---------- */
+  .verdict{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start;border-radius:14px;padding:18px;margin-top:12px;border:1.5px solid}
+  .verdict .ico{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:#fff}
+  .verdict .lbl{font-family:var(--mono);font-size:12px;letter-spacing:1px;text-transform:uppercase}
+  .verdict h2{font-family:var(--display);font-size:clamp(22px,4.6vw,28px);line-height:1.15;margin:2px 0 6px}
+  .verdict p{margin:0;font-size:15px}
+  .v-true{background:var(--true-bg);border-color:var(--true)} .v-true .ico{background:var(--true)} .v-true h2,.v-true .lbl{color:var(--true)}
+  .v-false{background:var(--false-bg);border-color:var(--false)} .v-false .ico{background:var(--false)} .v-false h2,.v-false .lbl{color:var(--false)}
+  .v-mixed{background:var(--mixed-bg);border-color:var(--mixed)} .v-mixed .ico{background:var(--mixed)} .v-mixed h2,.v-mixed .lbl{color:var(--mixed)}
+  .v-unk{background:var(--unk-bg);border-color:var(--unk)} .v-unk .ico{background:var(--unk)} .v-unk h2,.v-unk .lbl{color:var(--unk)}
+  .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .notice{font-size:13.5px;color:var(--muted);border-left:3px solid var(--saffron);padding:6px 10px;margin-top:12px;background:var(--surface)}
+
+  .aside{display:grid;gap:12px;margin-top:4px}
+  @media (min-width:720px){.aside.two{grid-template-columns:1fr 1fr}}
+  .box h3{margin:0 0 8px;font-size:13px;font-family:var(--mono);letter-spacing:.8px;text-transform:uppercase;color:var(--muted)}
+  .box ul{margin:0;padding-left:18px;font-size:14.5px}
+  .box li{margin:4px 0}
+
+  /* ---------- Story cards ---------- */
+  .stories-h{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;justify-content:space-between;margin:30px 0 4px}
+  .stories-h h2{font-family:var(--display);font-size:22px;margin:0}
+  .stories-h span{font-size:13px;color:var(--muted)}
+  .story{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);margin-top:14px;overflow:hidden;
+    opacity:0;transform:translateY(8px);animation:rise .45s var(--ease) forwards}
+  @keyframes rise{to{opacity:1;transform:none}}
+  .story .head{padding:16px 16px 0}
+  .story .meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
+  .idx{font-family:var(--mono);font-weight:600;color:var(--saffron-ink)}
+  .stamp{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;padding:3px 8px;border-radius:4px;border:1.5px solid;white-space:nowrap}
+  .s-corroborated{color:var(--true);border-color:var(--true);background:var(--true-bg)}
+  .s-reported{color:var(--official);border-color:var(--official)}
+  .s-disputed{color:var(--mixed);border-color:var(--mixed);background:var(--mixed-bg)}
+  .s-false{color:var(--false);border-color:var(--false);background:var(--false-bg)}
+  .s-unverified{color:var(--unk);border-color:var(--unk);background:var(--unk-bg)}
+  .story h3{font-family:var(--display);font-weight:700;font-size:clamp(19px,4vw,22px);line-height:1.22;margin:10px 0 8px}
+  .debrief{margin:0;font-size:15.5px;color:var(--text)}
+  .debrief-l{font-family:var(--mono);font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:2px}
+  .mix{margin:14px 0 0}
+  .mixbar{display:flex;gap:2px;height:8px;border-radius:99px;overflow:hidden;background:var(--surface-2)}
+  .mixbar span{display:block;height:100%}
+  .mixleg{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:6px;font-size:12px;color:var(--muted)}
+  .mixleg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px}
+  .c-official{background:var(--official)} .c-factcheck{background:var(--factcheck)} .c-established{background:var(--established)} .c-other{background:var(--other)}
+  .sources{margin:14px 0 0;padding:0;list-style:none;border-top:1px solid var(--line)}
+  .src a{display:grid;grid-template-columns:36px 1fr auto;gap:12px;align-items:center;padding:12px 16px;text-decoration:none;color:var(--text);border-bottom:1px solid var(--line);min-height:56px}
+  .src a:hover{background:var(--surface-2)}
+  .src a:hover .t{text-decoration:underline}
+  .av{width:36px;height:36px;border-radius:8px;display:grid;place-items:center;font-family:var(--display);font-weight:700;font-size:15px;color:#fff}
+  .src .t{font-weight:500;font-size:14.5px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .src .o{font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;margin-top:2px}
+  .tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.4px;text-transform:uppercase;border-radius:3px;padding:1px 5px;border:1px solid}
+  .t-official{color:var(--official);border-color:var(--official)} .t-factcheck{color:var(--factcheck);border-color:var(--factcheck)} .t-established{color:var(--established);border-color:var(--established)}
+  .ext{color:var(--muted)}
+  .sources li:last-child a{border-bottom:0}
+  .more{width:100%;border:0;border-top:1px solid var(--line);background:transparent;color:var(--link);font:inherit;font-weight:600;font-size:14px;min-height:48px;cursor:pointer}
+  .more:hover{background:var(--surface-2)}
+  .nosrc{padding:12px 16px;font-size:14px;color:var(--muted)}
+
+  .guide{margin:40px 0 10px;font-size:14.5px;color:var(--muted)}
+  .guide h2{font-family:var(--display);color:var(--text);font-size:19px;margin:0 0 10px}
+  .guide dl{display:grid;gap:10px;margin:0 0 12px}
+  .guide dt,.guide dd{display:inline;margin:0}
+  footer{margin-top:40px;padding:22px 0 32px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+  [hidden]{display:none!important}
+
+  @media (max-width:520px){
+    .mast nav a{font-size:13px;padding:10px 8px}
+    .funnel{gap:6px}
+    .funnel .arrow svg{width:40px}
+    .src a{padding:12px 14px;gap:10px}
+    .row .btn.primary{flex:1;justify-content:center}
+    .detect{width:100%}
+    .verdict{grid-template-columns:1fr;gap:10px}
+    .verdict .ico{width:38px;height:38px}
+    .actions .btn{flex:1;justify-content:center}
+    .hero{padding:18px 0 30px}
+    .hero p{font-size:15.5px}
+  }
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition:none!important}
+    .story,.art,.one,.merge .into{opacity:1;transform:none}
+  }
 </style>
 </head>
 <body>
-<header>
-  <h1>SecureIndia</h1>
-  <p>Aadhaar Secure QR verification &nbsp;·&nbsp; SIH26188 &nbsp;·&nbsp; Team TECHNOVA</p>
+<a class="skip" href="#input">Skip to the checker</a>
+
+<header class="mast">
+  <div class="wrap wide">
+    <div class="top">
+      <a class="brand" href="/" aria-label="SecureIndia fake news check, home">
+        <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><path d="M14 2 25 6v7c0 6.6-4.6 11.5-11 13-6.4-1.5-11-6.4-11-13V6z" fill="#E8871E"/><path d="m9 14 3.4 3.4L19.5 10" stroke="#131C3F" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        SecureIndia
+      </a>
+      <nav aria-label="Main">
+        <a href="#guide">How to read results</a>
+        <button class="iconbtn" id="theme" type="button" aria-label="Switch between light and dark theme">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        </button>
+      </nav>
+    </div>
+    <div class="hero hero-grid">
+      <div>
+      <div class="kicker">Free · open to everyone · no sign-up</div>
+      <h1>Got a forward? Check it before you share it.</h1>
+      <p>Paste any news, a WhatsApp forward or a link. We scan the web, merge every article that says the same thing, and give you one clear debrief per story with every source we found.</p>
+      <ol class="how">
+        <li><b>1</b>Paste news or a link</li>
+        <li><b>2</b>We scan the web</li>
+        <li><b>3</b>Duplicates merged into stories</li>
+        <li><b>4</b>Read the debrief, open the sources</li>
+      </ol>
+      </div>
+      <div class="merge" aria-hidden="true">
+        <div class="pile">
+          <div class="art"><span class="av" style="background:#18794E">T</span><span class="ln"></span><span class="ln s"></span></div>
+          <div class="art"><span class="av" style="background:#1F4FB8">N</span><span class="ln"></span><span class="ln s"></span></div>
+          <div class="art"><span class="av" style="background:#7A2E98">B</span><span class="ln"></span><span class="ln s"></span></div>
+          <div class="art"><span class="av" style="background:#9A4F00">I</span><span class="ln"></span><span class="ln s"></span></div>
+        </div>
+        <svg class="into" viewBox="0 0 40 120" width="40" height="120"><path d="M2 8c20 0 18 52 34 52M2 44c14 0 16 16 34 16M2 76c14 0 16-16 34-16M2 112c20 0 18-52 34-52" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <div class="one">
+          <span class="stamp s-corroborated">1 story</span>
+          <div class="ttl">One debrief, every source</div>
+          <div class="ln"></div><div class="ln"></div><div class="ln s"></div>
+          <div class="avs"><span style="background:#18794E">T</span><span style="background:#1F4FB8">N</span><span style="background:#7A2E98">B</span><span style="background:#9A4F00">I</span></div>
+          <div class="cap">4 articles &rarr; 1 story</div>
+        </div>
+      </div>
+    </div>
+  </div>
 </header>
-<div class="bar"></div>
 
-<main>
-  <div class="note" style="margin-bottom:16px">
-    <strong>Nothing is uploaded.</strong> The QR is decoded and the signature verified entirely in your
-    browser. No document, image or field leaves this device.
-  </div>
+<main class="wrap" id="main">
+  <form class="composer" id="form" novalidate>
+    <label for="input">What do you want to check?</label>
+    <textarea id="input" name="input" maxlength="6000" aria-describedby="detect"
+      placeholder="Paste a link (https://…), a headline, or the whole forwarded message"></textarea>
+    <div class="row">
+      <div class="detect" id="detect" aria-live="polite"><span class="dot"></span><span id="detectText">Waiting for your news</span></div>
+      <button class="btn ghost" type="button" id="paste">Paste</button>
+      <button class="btn primary" type="submit" id="go">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        Scan the web
+      </button>
+    </div>
+    <div class="examples" id="examples">
+      <span>Try:</span>
+      <button class="chip" type="button">FM Nirmala Sitharaman video promoting investment scheme that pays ₹5000 per hour</button>
+      <button class="chip" type="button">RBI keeps repo rate unchanged</button>
+      <button class="chip" type="button">Government giving free laptops to all students under National Student Laptop Scheme 2026</button>
+    </div>
+    <div class="examples recent" id="recent" hidden></div>
+  </form>
 
-  <div class="card">
-    <h2>STEP 1 — SIGNING CERTIFICATE <span id="certPill" class="pill">none loaded</span></h2>
-    <p class="hint">Load UIDAI's public certificate (<code>.cer</code> / <code>.pem</code>) from uidai.gov.in.
-       For a demonstration without a real card, load the built-in synthetic test certificate instead —
-       it is <strong>not</strong> UIDAI's key and is clearly labelled as such.</p>
-    <input type="file" id="certFile" accept=".cer,.pem,.crt,.der">
-    <button id="btnDemoCert" class="ghost">Load DEMO test certificate</button>
-    <div id="certStatus" style="font-size:13px;margin-top:8px"></div>
-  </div>
+  <section class="panel loading" id="loading" hidden aria-live="polite" aria-busy="true">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
+      <strong>Scanning the web…</strong><span class="elapsed" id="elapsed">0s</span>
+    </div>
+    <ol id="stages">
+      <li><i></i>Reading your news</li>
+      <li><i></i>Searching news sites, official sources and fact-checkers</li>
+      <li><i></i>Merging articles that say the same thing</li>
+      <li><i></i>Writing one debrief per story</li>
+    </ol>
+    <p class="elapsed" style="margin:8px 0 0">A deep scan can take up to a minute.</p>
+    <div class="skel" aria-hidden="true"><div class="sk h"></div><div class="sk"></div><div class="sk"></div><div class="sk s"></div></div>
+  </section>
 
-  <div class="card">
-    <h2>STEP 2 — READ THE QR</h2>
-    <p class="hint">Scan the Secure QR on the physical Aadhaar card, upload a sharp photo of it, or upload the
-       e-Aadhaar PDF. The QR is very dense — fill the frame, avoid glare, hold steady. Photocopies and
-       photos of screens usually fail to decode.</p>
-    <button id="btnCam">Open camera</button>
-    <button id="btnStop" class="ghost" disabled>Stop camera</button>
-    <button id="btnDemoOK" class="warn">Demo: genuine sample</button>
-    <button id="btnDemoBad" class="warn">Demo: tampered sample</button><br>
-    <input type="file" id="qrFile" accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.bmp,.pdf,application/pdf">
-    <div style="font-size:12px;color:var(--grey);margin-top:4px">Accepts JPG, PNG, WEBP, HEIC and e-Aadhaar PDF (you will be asked for the PDF password).</div>
-    <div id="reader"></div>
-    <div id="scanStatus" style="font-size:13px;margin-top:8px"></div>
-    <details style="margin-top:10px">
-      <summary style="font-size:12.5px;cursor:pointer;color:var(--grey)">Paste QR contents manually</summary>
-      <textarea id="manual" placeholder="Paste the decoded QR text here (a long number for a Secure QR)"></textarea>
-      <button id="btnManual" class="ghost">Verify pasted text</button>
-    </details>
-  </div>
+  <section class="panel error" id="error" hidden role="alert">
+    <h2>We couldn't finish this check</h2>
+    <p id="errorMsg" style="margin:0 0 12px"></p>
+    <button class="btn ghost" type="button" id="retry">Try again</button>
+  </section>
 
-  <div id="verdict" class="verdict"><h3 id="vTitle"></h3><p id="vSub"></p></div>
+  <section id="results" hidden aria-labelledby="resultsTitle">
+    <h2 class="sr" id="resultsTitle" tabindex="-1">Results</h2>
+    <div class="funnel" aria-label="Scan summary">
+      <div><div class="n" id="nFound">0</div><div class="l">articles found across the web</div></div>
+      <div class="arrow" aria-hidden="true">
+        <svg viewBox="0 0 64 34"><path d="M2 4h14l16 13L16 30H2M32 17h28m-7-6 7 6-7 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        merged
+      </div>
+      <div class="right"><div class="n" id="nStories">0</div><div class="l" id="lStories">distinct stories</div></div>
+    </div>
+    <span class="mode" id="mode"></span>
 
-  <div class="card" id="stepsCard" style="display:none">
-    <h2>VERIFICATION STEPS</h2>
-    <ol class="steps" id="steps"></ol>
-  </div>
+    <div class="verdict" id="verdict">
+      <div class="ico" id="vIco" aria-hidden="true"></div>
+      <div>
+        <div class="lbl" id="vConf"></div>
+        <h2 id="vTitle"></h2>
+        <p id="vText"></p>
+        <div class="actions">
+          <a class="btn ghost" id="share" target="_blank" rel="noopener noreferrer">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2c0 1.3.9 2.5 1 2.7.1.2 1.8 2.8 4.4 3.9 1.6.7 2.3.8 3.1.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.3-.2-.5-.3z"/></svg>
+            Share on WhatsApp
+          </a>
+          <button class="btn ghost" type="button" id="copy">Copy link</button>
+        </div>
+      </div>
+    </div>
+    <p class="notice" id="notice" hidden></p>
 
-  <div class="card" id="fieldsCard" style="display:none">
-    <h2>SIGNED DATA FROM THE QR</h2>
-    <p class="hint">These fields were inside the signed byte stream. If the signature verified, the issuer
-       produced exactly these values and nothing has been altered.</p>
-    <table id="fields"></table>
-  </div>
+    <div class="aside" id="aside">
+      <div class="panel box" id="claimsBox" hidden><h3>Claims we checked</h3><ul id="claims"></ul></div>
+      <div class="panel box" id="flagsBox" hidden><h3>Warning signs in the message</h3><ul id="flags"></ul></div>
+    </div>
 
-  <div class="card" id="diagCard" style="display:none">
-    <h2>DIAGNOSTICS</h2>
-    <p class="hint">What the scanner actually read. Useful when a scan fails.</p>
-    <div class="diag" id="diag"></div>
-  </div>
+    <div class="stories-h"><h2>What the web says</h2><span id="storiesSub"></span></div>
+    <div id="stories"></div>
+
+    <section class="story" id="fcBox" hidden aria-labelledby="fcTitle">
+      <div class="head"><div class="meta"><span class="stamp s-false">Fact-checks</span></div>
+        <h3 id="fcTitle">More fact-checks on this claim</h3></div>
+      <ul class="sources" id="factChecks"></ul>
+    </section>
+  </section>
+
+  <section class="guide" id="guide" aria-labelledby="guideTitle">
+    <h2 id="guideTitle">How to read a result</h2>
+    <dl>
+      <div><dt><span class="stamp s-corroborated">Corroborated</span></dt> <dd>an official source or several established outlets report it independently.</dd></div>
+      <div><dt><span class="stamp s-reported">Reported</span></dt> <dd>several outlets carry it, but none we treat as established.</dd></div>
+      <div><dt><span class="stamp s-disputed">Disputed</span></dt> <dd>some coverage says it is false or misleading.</dd></div>
+      <div><dt><span class="stamp s-false">False</span></dt> <dd>a fact-checker, official source or established outlet has called it fake.</dd></div>
+      <div><dt><span class="stamp s-unverified">Unverified</span></dt> <dd>too little evidence either way. Don't share it yet.</dd></div>
+    </dl>
+    <p>The verdict summarises the evidence; it is not a final ruling. How often something is forwarded proves nothing, and one official denial outweighs a thousand shares. Always open the sources.</p>
+  </section>
+
+  <footer>SecureIndia · SIH26188 · Team TECHNOVA · What you paste is sent to our server only to run the search and is not stored.</footer>
 </main>
 
-<footer>SecureIndia · Verify first, guess second · Prototype for Smart India Hackathon 2026</footer>
-
 <script>
-const DEMO = {"cert": "-----BEGIN CERTIFICATE-----\nMIIDSTCCAjGgAwIBAgIBATANBgkqhkiG9w0BAQsFADBoMTEwLwYDVQQDDChTZWN1\ncmVJbmRpYSBERU1PIHNpZ25pbmcga2V5IChOT1QgVUlEQUkpMTMwMQYDVQQKDCpU\nZWFtIFRFQ0hOT1ZBIC0gc3ludGhldGljIHRlc3QgY2VydGlmaWNhdGUwHhcNMjYw\nMTAxMDAwMDAwWhcNMzYwMTAxMDAwMDAwWjBoMTEwLwYDVQQDDChTZWN1cmVJbmRp\nYSBERU1PIHNpZ25pbmcga2V5IChOT1QgVUlEQUkpMTMwMQYDVQQKDCpUZWFtIFRF\nQ0hOT1ZBIC0gc3ludGhldGljIHRlc3QgY2VydGlmaWNhdGUwggEiMA0GCSqGSIb3\nDQEBAQUAA4IBDwAwggEKAoIBAQDJa1wlFlFglPCiGsqPXhS+3ho1u0unVgW1mJUq\nZARt0A6zLRF7/UQ4EZz7hn0dg1xZU5CNnVP2o/gEDr3L9osRIvQb9DBpkTYRTZVH\nHCPze4ftxpc2uiWKmRpNDzqdbpTgrvL71TTYWi0EQfW8HerhuAOIyoqDYSNuAcmb\nF8usVFMWgznV/zvtxDgE/Xi8vbugczDcsCLC7nZnGUF3cW9tI4hm4Mzp75bZm9W5\nbLDq9ryQt/OO0WJXUHDtSQ2G5KiD/SnNMK6l/h+6Sgy3l3oFvK+umZ5WEj8XC2kw\nMQ9WGfHAcUWCvhIeryzNlGrbtu+fvHd66CazpkGWAwav3mNzAgMBAAEwDQYJKoZI\nhvcNAQELBQADggEBAGNJO2KyQ0jprSobNPbsszUeXklWcYqbUkvAJGR7h/6sKDKK\nu3+WExnuqV5l8q3nmVzGHmK5h0OCDxYR6xRIqowc0kHsf5zL/YLXLrKgxCOvDuUT\no7KNd+FIehFzXCdqLTSHs1gvtRCPvuxsTAM93QZEkwtOz4lKwa59F3F/9CEFxfUr\nyxjZqBWVlGLGUmtCRF8UEa6iRGfT40GwX4Y/ywtecqYFgbsWoVQ8z9ddBOOdQaIu\nMpMnRTarZqHRUzbpGr83sD19MbjL9XYuto4QGH1pYDU0tPHwUeEeaoy9n0ujs2Um\noygKosSQQ2OGS18A4womx9bH1pBHj8C3g9L+rJM=\n-----END CERTIFICATE-----\n", "genuine": "2701522153207712387561507724834315919177880561769389340214041721343421505878460704039739623224407729408758706396685644742407306631905168126223762030640062935865589566989508314462268763651452240806881860727822844767177554471372182288211171016839261944033541718386800877800690497943122309673049994393831372867111542330931337024511773853876983929841482525153405375893533414438021103089364423904160442902274658053331097972603862599630759114387960155133769943847064087346237453273759190192681691049359533197397596808145843126787189324941119143065397277753442938840687635430217622119850631040679315727160188392004396790050270867060569201382084595316024322623538208257481664293232570456719018008403680293121713330966193175675888215679601705663813034291592344746048251587291499858766151775776542591782996137708348291914442362867723773251827612874107235771918092600223710080906788881570550086130582868810441108987150126143202501341839180589000704641896924159372176402468623845538016237234699559782758920580620625360565214481058813629891990143656200345049761184392711207735628204369494782519660844941312", "tampered": "2701522153207712387561507724834315919177880561769389340214041721343421505878460704039739623224407729408758706396685644742407306631413354722394847794914072520290666558253819079697702471740389555589267341070904827637132273683986754725178740510851772596104254743132786090087299003788444078349884380346758984198020442273918368050973803338426483661534252705326005444702908719923092820343869895828838700593693749755588066088330518519397654658086576123515762089658645504694959944450998385635672715610091707433974492259643767603803213094238673749116169759422569224792747410488130877989902690638104471843159488669564331204247345300525025877946658285849373459634355310671958675596139113072844972478965719357367446210917491102216228060232860678775394644295717117777285129386098637323829355103951655799984494758379450381262054380113294318842612413851654238760646817493661171706407204199568409244836605759632290471189242016891981643288706863782045494866223973411495604960174472677960649988666574682803434697887666371936691913899795831773265370747123955756521779840142126867934708129869707527794641663688704"};
-
+(() => {
 const $ = id => document.getElementById(id);
-let cert = null, certLabel = '', html5qr = null;
-const steps = []; let diagLines = [];
-
-/* ---------------- certificate ---------------- */
-function loadCertPEM(pem, label){
-  const x = new X509(); x.readCertPEM(pem);
-  cert = x; certLabel = label;
-  $('certPill').textContent = label;
-  $('certStatus').innerHTML =
-    '<span style="color:var(--green);font-weight:bold">Certificate loaded.</span> ' +
-    '<span style="font-size:12px">Subject: ' + x.getSubjectString() + '</span>';
-}
-$('certFile').addEventListener('change', async e => {
-  const f = e.target.files[0]; if (!f) return;
-  try {
-    const buf = new Uint8Array(await f.arrayBuffer());
-    let pem = new TextDecoder().decode(buf);
-    if (!pem.includes('BEGIN CERTIFICATE')) {
-      let b64 = ''; buf.forEach(b => b64 += String.fromCharCode(b)); b64 = btoa(b64);
-      pem = '-----BEGIN CERTIFICATE-----\n' + b64.match(/.{1,64}/g).join('\n') + '\n-----END CERTIFICATE-----';
-    }
-    loadCertPEM(pem, 'file: ' + f.name);
-  } catch (err) {
-    cert = null; $('certPill').textContent = 'none loaded';
-    $('certStatus').innerHTML = '<span style="color:var(--red);font-weight:bold">Could not read certificate.</span> ' + err.message;
-  }
-});
-$('btnDemoCert').onclick = () => loadCertPEM(DEMO.cert, 'DEMO test key (not UIDAI)');
-
-/* ---------------- camera: QR only, keep scanning until a plausible Secure QR ---------------- */
-let camReads = 0, lastShort = '';
-function plausible(text){
-  const t = String(text).trim();
-  if (/^https?:\/\//i.test(t) || t.startsWith('<')) return true;   // other formats: report them
-  return /^\d+$/.test(t) && t.length >= 600;                          // Secure QR: a very long number
-}
-$('btnCam').onclick = async () => {
-  resetDiag(); camReads = 0; lastShort = '';
-  html5qr = new Html5Qrcode('reader', {
-    formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-    verbose: false
-  });
-  const cfg = {
-    fps: 12,
-    qrbox: (vw, vh) => { const s = Math.floor(Math.min(vw, vh) * 0.85); return { width: s, height: s }; },
-    videoConstraints: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 },
-                        focusMode: 'continuous' },
-    disableFlip: true
-  };
-  try {
-    await html5qr.start({ facingMode: 'environment' }, cfg, text => {
-      camReads++;
-      if (plausible(text)) { stopCam(); handleQR(text, 'camera'); return; }
-      const t = String(text).trim();
-      if (t !== lastShort) { lastShort = t; diag('ignored short read: ' + t.length + ' chars "' + t.slice(0, 24) + '"'); }
-      status('Read ' + t.length + ' characters \u2014 that is not the Secure QR. Keep the whole QR in the box, 15\u201320 cm away, hold still\u2026');
-    }, () => {});
-    $('btnCam').disabled = true; $('btnStop').disabled = false;
-    status('Camera running \u2014 fill the box with the QR, 15\u201320 cm away, no glare, hold still.');
-  } catch (e) {
-    $('scanStatus').innerHTML = '<span style="color:var(--red)">Camera unavailable: ' + e + '</span> (camera needs HTTPS \u2014 use the Vercel link, not a local file)';
-  }
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const safeUrl = u => /^https?:\/\//i.test(u || '') ? u : '#';
+const store = {
+  get(k, d){ try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch { return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
-function stopCam(){
-  if (html5qr) { html5qr.stop().then(() => html5qr.clear()).catch(() => {}); html5qr = null; }
-  $('btnCam').disabled = false; $('btnStop').disabled = true;
-}
-$('btnStop').onclick = stopCam;
+const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/* ---------------- file upload: native -> ZXing(TRY_HARDER) -> jsQR, with preprocessing ---------------- */
-if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc =
-  'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+/* ---- theme ---- */
+const applyTheme = t => { if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; };
+applyTheme(store.get('si-theme', null));
+$('theme').onclick = () => {
+  const cur = document.documentElement.dataset.theme;
+  const dark = cur ? cur === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  const next = dark ? 'light' : 'dark';
+  applyTheme(next); store.set('si-theme', next);
+};
 
-const yieldUI = () => new Promise(r => setTimeout(r, 0));
-const MAX_SIDE = 1400, MAX_PIX = 2.2e6;
+/* ---- input detection ---- */
+const input = $('input');
+function detect(){
+  const v = input.value.trim(), d = $('detect');
+  const isLink = /^https?:\/\/\S+$/i.test(v);
+  d.className = 'detect' + (!v ? '' : isLink ? ' link' : ' text');
+  let host = ''; if (isLink) { try { host = new URL(v).hostname.replace(/^www\./, ''); } catch {} }
+  $('detectText').textContent = !v ? 'Waiting for your news' : isLink ? `Link detected · ${host || 'article'}` : `News text · ${v.split(/\s+/).length} words`;
+}
+input.addEventListener('input', detect);
+input.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); run(); } });
+$('paste').onclick = async () => {
+  try { input.value = await navigator.clipboard.readText(); detect(); input.focus(); }
+  catch { input.focus(); $('detectText').textContent = 'Press and hold in the box, then choose Paste'; }
+};
+$('examples').addEventListener('click', e => { const c = e.target.closest('.chip'); if (c) { input.value = c.textContent.trim(); detect(); run(); } });
 
-/* downscale once so nothing below ever touches a huge bitmap */
-function baseCanvas(img){
-  const s = Math.min(1, MAX_SIDE / Math.max(img.width, img.height));
-  const w = Math.round(img.width * s), h = Math.round(img.height * s);
-  const c = document.createElement('canvas'); c.width = w; c.height = h;
-  const ctx = c.getContext('2d', { willReadFrequently: true });
-  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(img, 0, 0, w, h);
-  diag('working size ' + w + 'x' + h + (s < 1 ? ' (downscaled from ' + img.width + 'x' + img.height + ')' : ''));
-  return c;
+/* ---- recent checks (kept in this browser only) ---- */
+function renderRecent(){
+  const list = store.get('si-recent', []), box = $('recent');
+  box.hidden = !list.length;
+  box.innerHTML = '<span>Recent:</span>' + list.map(r => `<button class="chip" type="button" data-q="${esc(r)}">${esc(r.length > 60 ? r.slice(0, 57) + '…' : r)}</button>`).join('');
 }
+$('recent').addEventListener('click', e => { const c = e.target.closest('.chip'); if (c) { input.value = c.dataset.q; detect(); run(); } });
+function remember(q){ store.set('si-recent', [q, ...store.get('si-recent', []).filter(x => x !== q)].slice(0, 4)); renderRecent(); }
+renderRecent();
 
-function canvasFrom(base, scale, mode){
-  let w = Math.round(base.width * scale), h = Math.round(base.height * scale);
-  if (w * h > MAX_PIX) { const k = Math.sqrt(MAX_PIX / (w * h)); w = Math.round(w * k); h = Math.round(h * k); }
-  const c = document.createElement('canvas'); c.width = w; c.height = h;
-  const ctx = c.getContext('2d', { willReadFrequently: true });
-  ctx.imageSmoothingEnabled = scale < 1; ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(base, 0, 0, w, h);
-  if (mode !== 'plain') {
-    const id = ctx.getImageData(0, 0, w, h), p = id.data;
-    let lo = 255, hi = 0; const g = new Uint8ClampedArray(w * h);
-    for (let i = 0, j = 0; i < p.length; i += 4, j++) { const v = (p[i]*299 + p[i+1]*587 + p[i+2]*114) / 1000; g[j] = v; if (v < lo) lo = v; if (v > hi) hi = v; }
-    const rng = Math.max(1, hi - lo);
-    if (mode === 'threshold') {
-      const hist = new Array(256).fill(0); for (let j = 0; j < g.length; j++) hist[g[j]]++;
-      let sum = 0; for (let t = 0; t < 256; t++) sum += t * hist[t];
-      let sumB = 0, wB = 0, best = 0, thr = 128, total = g.length;
-      for (let t = 0; t < 256; t++) { wB += hist[t]; if (!wB) continue; const wF = total - wB; if (!wF) break;
-        sumB += t * hist[t]; const mB = sumB / wB, mF = (sum - sumB) / wF; const v = wB * wF * (mB - mF) ** 2;
-        if (v > best) { best = v; thr = t; } }
-      for (let j = 0, i = 0; j < g.length; j++, i += 4) { const v = g[j] > thr ? 255 : 0; p[i] = p[i+1] = p[i+2] = v; }
-    } else {
-      for (let j = 0, i = 0; j < g.length; j++, i += 4) { const v = ((g[j] - lo) / rng) * 255; p[i] = p[i+1] = p[i+2] = v; }
-    }
-    ctx.putImageData(id, 0, 0);
-  }
-  return c;
-}
+/* ---- rendering helpers ---- */
+const COLORS = ['#1F4FB8','#18794E','#9A4F00','#7A2E98','#B42318','#0E7490','#4338CA','#A16207'];
+const avatarColor = s => COLORS[[...(s || '?')].reduce((a, c) => a + c.charCodeAt(0), 0) % COLORS.length];
+const kind = s => s.official ? 'official' : s.factCheck ? 'factcheck' : s.established ? 'established' : 'other';
+const KIND = { official:['official source','official sources'], factcheck:['fact-checker','fact-checkers'],
+               established:['established outlet','established outlets'], other:['other site','other sites'] };
+const TAG = { official:'Official', factcheck:'Fact-checker', established:'Established' };
+function fmtDate(d){ if (!d) return ''; const t = new Date(d); return isNaN(t) ? esc(d) : t.toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }); }
+function hostOf(u){ try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return ''; } }
 
-let decodeRun = 0;
-function status(t){ $('scanStatus').textContent = t; }
-
-async function tryNative(base, run){
-  if (!('BarcodeDetector' in window)) return null;
-  try {
-    const det = new BarcodeDetector({ formats: ['qr_code'] });
-    for (const scale of [1, 0.6, 1.4]) {
-      if (run !== decodeRun) return null;
-      status('Decoding\u2026 native detector ' + scale + 'x'); await yieldUI();
-      const r = await det.detect(canvasFrom(base, scale, 'plain'));
-      if (r && r.length && r[0].rawValue) { diag('native BarcodeDetector decoded at ' + scale + 'x'); return r[0].rawValue; }
-    }
-  } catch (e) { diag('native detector: ' + e.message); }
-  return null;
-}
-async function tryZXing(base, run){
-  if (!window.ZXing) return null;
-  const hints = new Map();
-  hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-  hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.QR_CODE]);
-  const reader = new ZXing.MultiFormatReader(); reader.setHints(hints);
-  const plan = [[1,'plain'],[1,'contrast'],[1,'threshold'],[1.4,'plain'],[1.4,'threshold'],[0.7,'plain'],[0.7,'contrast']];
-  for (const [scale, mode] of plan) {
-    if (run !== decodeRun) return null;
-    status('Decoding\u2026 ZXing ' + scale + 'x ' + mode); await yieldUI();
-    const c = canvasFrom(base, scale, mode);
-    const src = new ZXing.HTMLCanvasElementLuminanceSource(c);
-    try { const res = reader.decode(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(src)), hints);
-      if (res && res.getText()) { diag('ZXing decoded at ' + scale + 'x / ' + mode); return res.getText(); } } catch (_) {}
-  }
-  return null;
-}
-async function tryJsQR(base, run){
-  for (const [scale, mode] of [[1,'plain'],[1,'contrast'],[1.4,'plain'],[0.7,'plain']]) {
-    if (run !== decodeRun) return null;
-    status('Decoding\u2026 jsQR ' + scale + 'x ' + mode); await yieldUI();
-    const c = canvasFrom(base, scale, mode);
-    const id = c.getContext('2d').getImageData(0, 0, c.width, c.height);
-    const r = jsQR(id.data, c.width, c.height, { inversionAttempts: 'dontInvert' });
-    if (r && r.data) { diag('jsQR decoded at ' + scale + 'x / ' + mode); return r.data; }
-  }
-  return null;
-}
-async function decodeImage(img){
-  const run = ++decodeRun;
-  const base = baseCanvas(img);
-  const deadline = Date.now() + 25000;
-  for (const fn of [tryNative, tryZXing, tryJsQR]) {
-    if (Date.now() > deadline) { diag('stopped: 25s time limit'); break; }
-    const t = await fn(base, run); if (t) return t;
-  }
-  return null;
-}
-function loadImage(fileOrBlob){
-  return new Promise((res, rej) => {
-    const url = URL.createObjectURL(fileOrBlob); const i = new Image();
-    i.onload = () => { URL.revokeObjectURL(url); res(i); };
-    i.onerror = () => { URL.revokeObjectURL(url); rej(new Error('browser could not open this image (HEIC needs Safari/iOS; convert to JPG elsewhere)')); };
-    i.src = url;
-  });
-}
-async function pagesFromPDF(file){
-  if (!window.pdfjsLib) throw new Error('PDF library failed to load');
-  const buf = await file.arrayBuffer(); let pdf, pw;
-  try { pdf = await pdfjsLib.getDocument({ data: buf }).promise; }
-  catch (e) {
-    if (e && /password/i.test(e.name + e.message)) {
-      pw = prompt('This e-Aadhaar PDF is password protected. Password is the first 4 letters of the name in CAPITALS + year of birth (e.g. JORD2006):');
-      if (!pw) throw new Error('password needed');
-      pdf = await pdfjsLib.getDocument({ data: buf, password: pw }).promise;
-    } else throw e;
-  }
-  const imgs = [];
-  for (let n = 1; n <= Math.min(pdf.numPages, 2); n++) {
-    const page = await pdf.getPage(n); const v1 = page.getViewport({ scale: 1 }); const vp = page.getViewport({ scale: Math.min(3, 2000 / Math.max(v1.width, v1.height)) });
-    const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
-    await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
-    const img = new Image(); img.src = c.toDataURL('image/png');
-    await new Promise(r => img.onload = r); imgs.push(img);
-  }
-  diag('PDF rendered ' + imgs.length + ' page(s)');
-  return imgs;
+function sourceLi(s, hidden){
+  const outlet = s.outlet || hostOf(s.url) || 'Source', k = kind(s);
+  const tag = TAG[k] ? `<span class="tag t-${k}">${TAG[k]}</span>` : '';
+  return `<li class="src"${hidden ? ' hidden' : ''}><a href="${esc(safeUrl(s.url))}" target="_blank" rel="noopener noreferrer">
+    <span class="av" style="background:${avatarColor(outlet)}" aria-hidden="true">${esc(outlet.replace(/^the\s+/i, '').charAt(0).toUpperCase())}</span>
+    <span><span class="t">${esc(s.title || s.url)}</span>
+      <span class="o"><span>${esc(outlet)}</span>${s.date ? `<span>· ${fmtDate(s.date)}</span>` : ''}${tag}</span></span>
+    <svg class="ext" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+    <span class="sr">(opens in a new tab)</span></a></li>`;
 }
 
-$('qrFile').addEventListener('change', async e => {
-  const f = e.target.files[0]; if (!f) return;
-  decodeRun++; $('scanStatus').textContent = 'Loading image…';
-  resetDiag(); diag('file: ' + f.name + ' (' + Math.round(f.size/1024) + ' KB, ' + (f.type || 'unknown type') + ')');
-  let text = null;
-  try {
-    const isPDF = /pdf$/i.test(f.name) || f.type === 'application/pdf';
-    const imgs = isPDF ? await pagesFromPDF(f) : [await loadImage(f)];
-    try { const pv = $('reader'); pv.innerHTML = ''; const im = imgs[0].cloneNode(); im.style.maxWidth = '100%'; im.style.border = '1px solid var(--line)'; pv.appendChild(im); } catch(_){}
-    for (const img of imgs) { diag('image ' + img.width + 'x' + img.height); text = await decodeImage(img); if (text) break; }
-  } catch (err) { diag('error: ' + err.message); }
-  if (!text) {
-    $('scanStatus').innerHTML = '<span style="color:var(--red);font-weight:bold">No QR could be decoded.</span> ' +
-      'Check the preview above actually shows the QR — the picker often selects the most recent photo. ' +
-      'Retake closer and straight-on, crop to just the QR, avoid glare. Or use the camera on the live site.';
-    showDiag(); return;
-  }
-  handleQR(text, 'upload', true);
-  e.target.value = '';
+function mixBar(sources){
+  const c = { official:0, factcheck:0, established:0, other:0 };
+  sources.forEach(s => c[kind(s)]++);
+  const parts = Object.entries(c).filter(([, n]) => n);
+  const seg = parts.map(([k, n]) => `<span class="c-${k}" style="flex:${n}"></span>`).join('');
+  const leg = parts.map(([k, n]) => `<span><i class="c-${k}"></i>${n} ${KIND[k][n === 1 ? 0 : 1]}</span>`).join('');
+  return `<div class="mix"><div class="mixbar" aria-hidden="true">${seg}</div><div class="mixleg">${leg}</div></div>`;
+}
+
+const STATUS = { corroborated:'Corroborated', reported:'Reported', disputed:'Disputed', false:'False', unverified:'Unverified' };
+const SHOW = 4;
+function storyCard(s, i, n){
+  const st = STATUS[String(s.status || '').toLowerCase()] ? String(s.status).toLowerCase() : 'unverified';
+  // Strongest evidence first: fact-checkers, then official sources, then established outlets.
+  const rank = { factcheck:0, official:1, established:2, other:3 };
+  const src = [...(s.sources || [])].sort((a, b) => rank[kind(a)] - rank[kind(b)]), id = 'st' + i;
+  const outlets = new Set(src.map(x => x.outlet || hostOf(x.url))).size;
+  return `<article class="story" style="animation-delay:${Math.min(i, 5) * 70}ms" aria-labelledby="${id}">
+    <div class="head">
+      <div class="meta"><span class="idx">Story ${i + 1} of ${n}</span><span class="stamp s-${st}">${STATUS[st]}</span>
+        <span>${src.length} article${src.length === 1 ? '' : 's'} · ${outlets} outlet${outlets === 1 ? '' : 's'}</span></div>
+      <h3 id="${id}">${esc(s.headline)}</h3>
+      <p class="debrief"><span class="debrief-l">Debrief</span>${esc(s.debrief)}</p>
+      ${src.length ? mixBar(src) : ''}
+    </div>
+    <ul class="sources" aria-label="Where this story was found">
+      ${src.length ? src.map((x, j) => sourceLi(x, j >= SHOW)).join('') : '<li class="nosrc">No source links could be verified for this story.</li>'}
+    </ul>
+    ${src.length > SHOW ? `<button class="more" type="button" aria-expanded="false">Show all ${src.length} sources</button>` : ''}
+  </article>`;
+}
+$('stories').addEventListener('click', e => {
+  const b = e.target.closest('.more'); if (!b) return;
+  const list = b.previousElementSibling, open = b.getAttribute('aria-expanded') === 'true';
+  [...list.children].forEach((li, j) => { if (j >= SHOW) li.hidden = open; });
+  b.setAttribute('aria-expanded', String(!open));
+  b.textContent = open ? `Show all ${list.children.length} sources` : 'Show fewer sources';
+  if (!open) list.children[SHOW].querySelector('a').focus();
 });
 
-/* ---------------- manual paste ---------------- */
-$('btnManual').onclick = () => { const t = $('manual').value.trim(); if (t) handleQR(t, 'manual'); };
-$('btnDemoOK').onclick  = () => handleQR(DEMO.genuine,  'demo-genuine');
-$('btnDemoBad').onclick = () => handleQR(DEMO.tampered, 'demo-tampered');
-
-/* ---------------- helpers ---------------- */
-function step(text, state){ steps.push({ text, state }); }
-function renderSteps(){ $('stepsCard').style.display = 'block';
-  $('steps').innerHTML = steps.map(s => '<li class="' + s.state + '">' + s.text + '</li>').join(''); }
-function verdict(cls, title, sub){ const v = $('verdict'); v.className = 'verdict ' + cls;
-  v.style.display = 'block'; $('vTitle').textContent = title; $('vSub').textContent = sub;
-  window.scrollTo({ top: 0, behavior: 'smooth' }); }
-function resetDiag(){ diagLines = []; }
-function diag(l){ diagLines.push(l); }
-function showDiag(){ $('diagCard').style.display = 'block'; $('diag').textContent = diagLines.join('\n'); }
-const hex = u8 => Array.from(u8).map(b => b.toString(16).padStart(2, '0')).join('');
-
-function bigIntToBytes(dec){
-  let n = BigInt(dec); const out = [];
-  while (n > 0n) { out.push(Number(n & 255n)); n >>= 8n; }
-  return new Uint8Array(out.reverse());
+const ICONS = {
+  true:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg>',
+  false:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  mixed:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 7v6M12 17h.01"/></svg>',
+  unk:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/></svg>'
+};
+function verdictKind(label){
+  const l = (label || '').toLowerCase();
+  if (l.includes('false') || l.includes('misleading')) return 'false';
+  if (l.includes('partly') || l.includes('disputed')) return 'mixed';
+  if (l.includes('true')) return 'true';
+  return 'unk';
 }
-function tryInflate(raw){
-  if (raw.length > 2 && raw[0] === 0x1f && raw[1] === 0x8b) {
-    try { return { data: pako.inflate(raw), how: 'GZIP' }; } catch (e) { diag('gzip inflate failed: ' + e); }
-  }
-  try { return { data: pako.inflate(raw), how: 'zlib' }; } catch (_) {}
-  try { return { data: pako.inflateRaw(raw), how: 'raw-deflate' }; } catch (_) {}
-  return { data: raw, how: 'none' };
-}
-const FIELD_NAMES = ['Version','Email/mobile present','Reference ID','Name','Date of birth','Gender',
-  'Care of','District','Landmark','House','Location','PIN code','Post office','State','Street','Sub-district','VTC'];
-function parseFields(data){
-  const out = []; let start = 0, count = 0;
-  for (let i = 0; i < data.length && count < 17; i++) {
-    if (data[i] === 0xFF) { out.push(new TextDecoder('utf-8').decode(data.slice(start, i))); start = i + 1; count++; }
-  }
-  return { fields: out, photoStart: start, count };
-}
-function showFields(fields, photoLen){
-  $('fieldsCard').style.display = 'block'; let h = '';
-  fields.forEach((v, i) => { if (v) h += '<tr><td class="k">' + (FIELD_NAMES[i] || 'Field ' + i) + '</td><td class="v">' + escapeHtml(v) + '</td></tr>'; });
-  h += '<tr><td class="k">Photograph</td><td class="v">' + photoLen + ' bytes present (JPEG2000, inside the signed data)</td></tr>';
-  $('fields').innerHTML = h;
-}
-function escapeHtml(s){ return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-/* ---------------- main flow ---------------- */
-function handleQR(text, source, keepDiag){
-  if (!keepDiag) resetDiag();
-  steps.length = 0; $('fieldsCard').style.display = 'none'; $('scanStatus').textContent = '';
-  text = String(text).trim();
-  diag('source: ' + source); diag('decoded length: ' + text.length + ' chars');
-  diag('starts with: ' + text.slice(0, 60).replace(/\n/g, ' '));
+function render(r, q){
+  const stories = r.stories || [];
+  const found = Math.max(r.searchedCount || 0, stories.reduce((a, s) => a + (s.sources || []).length, 0));
+  $('nFound').textContent = found;
+  $('nStories').textContent = stories.length;
+  $('lStories').textContent = stories.length === 1 ? 'distinct story' : 'distinct stories';
+  $('mode').textContent = r.mode === 'deep' ? '● Deep AI scan' : '● Keyword scan';
 
+  const v = r.verdict || {}, k = verdictKind(v.label), label = v.label || 'unverified';
+  $('verdict').className = 'verdict v-' + k;
+  $('vIco').innerHTML = ICONS[k];
+  $('vConf').textContent = 'Verdict' + (v.confidence ? ` · ${v.confidence} confidence` : '');
+  $('vTitle').textContent = label.charAt(0).toUpperCase() + label.slice(1);
+  $('vText').textContent = v.reasoning || '';
+
+  const link = location.origin + location.pathname + '?q=' + encodeURIComponent(q);
+  $('share').href = 'https://wa.me/?text=' + encodeURIComponent(`SecureIndia check: "${q.slice(0, 120)}${q.length > 120 ? '…' : ''}" → ${label.toUpperCase()}. See the sources: ${link}`);
+  $('copy').textContent = 'Copy link';
+  $('copy').onclick = async () => { try { await navigator.clipboard.writeText(link); $('copy').textContent = 'Copied ✓'; } catch { prompt('Copy this link', link); } };
+
+  $('notice').hidden = !r.notice; $('notice').textContent = r.notice || '';
+  const list = (id, box, items) => { $(box).hidden = !(items && items.length); $(id).innerHTML = (items || []).map(x => `<li>${esc(x)}</li>`).join(''); };
+  list('claims', 'claimsBox', r.claims); list('flags', 'flagsBox', r.redFlags);
+  $('aside').classList.toggle('two', !$('claimsBox').hidden && !$('flagsBox').hidden);
+
+  $('storiesSub').textContent = stories.length > 1 ? `Your news covers ${stories.length} separate stories` : '';
+  $('stories').innerHTML = stories.length ? stories.map((s, i) => storyCard(s, i, stories.length)).join('')
+    : `<div class="panel"><strong>No matching coverage found.</strong><p style="margin:6px 0 0;color:var(--muted)">Real news of any importance is usually reported by several outlets, so no coverage at all is a warning sign. Try fewer, more specific words, or paste the original link.</p></div>`;
+
+  // Never repeat a link that is already listed under a story.
+  const shownUrls = new Set(stories.flatMap(s => (s.sources || []).map(x => x.url)));
+  const fc = (r.factChecks || []).filter(f => !shownUrls.has(f.url));
+  $('fcBox').hidden = !fc.length;
+  $('factChecks').innerHTML = fc.map(s => sourceLi(s, false)).join('');
+  $('results').hidden = false;
+  $('resultsTitle').focus({ preventScroll: true });
+  $('results').scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'start' });
+}
+
+/* ---- run a check ---- */
+let timer, busy = false;
+function loading(on){
+  $('loading').hidden = !on; $('go').disabled = on; busy = on;
+  clearInterval(timer);
+  if (!on) return;
+  const lis = [...$('stages').children], t0 = Date.now(), at = [0, 2, 10, 22];
+  const tick = () => {
+    const s = (Date.now() - t0) / 1000;
+    $('elapsed').textContent = Math.floor(s) + 's';
+    const cur = at.filter(x => s >= x).length - 1;
+    lis.forEach((li, i) => { li.className = i < cur ? 'done' : i === cur ? 'on' : ''; });
+  };
+  tick(); timer = setInterval(tick, 500);
+}
+
+async function run(){
+  const q = input.value.trim();
+  if (busy) return;
+  if (q.length < 8) { $('detectText').textContent = 'Add a bit more: at least a headline or a link'; input.focus(); return; }
+  $('error').hidden = true; $('results').hidden = true;
+  loading(true);
+  $('loading').scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'center' });
   try {
-    /* ---- classify what we read ---- */
-    if (/^https?:\/\//i.test(text)) {
-      step('QR contains a web link, not a signed byte stream.', 'fail');
-      renderSteps(); showDiag();
-      return verdict('grey', 'NOT A SECURE QR — LINK', 'This looks like a DigiLocker or web QR. DigiLocker documents are verified through DigiLocker\u2019s own endpoint (verify.digilocker.gov.in), not by this flow. Scan the QR printed on the physical Aadhaar card.');
-    }
-    if (text.startsWith('<')) {
-      step('QR contains XML — this is the OLD Aadhaar QR format, which carries no digital signature.', 'fail');
-      const m = {}; for (const a of ['uid','name','gender','yob','dob']) { const r = new RegExp(a + '="([^"]*)"').exec(text); if (r) m[a] = r[1]; }
-      renderSteps(); showDiag();
-      $('fieldsCard').style.display = 'block';
-      $('fields').innerHTML = Object.entries(m).map(([k,v]) => '<tr><td class="k">' + k + '</td><td class="v">' + escapeHtml(v) + '</td></tr>').join('');
-      return verdict('amber', 'UNSIGNED — OLD FORMAT', 'Old-format Aadhaar QRs contain plain data with no signature. Nothing can be cryptographically verified. Route to Track 2 (forensics) and manual review.');
-    }
-    if (!/^\d+$/.test(text)) {
-      step('QR decoded, but the content is neither numeric, XML nor a link.', 'fail');
-      renderSteps(); showDiag();
-      return verdict('grey', 'UNRECOGNISED QR', 'Not an Aadhaar Secure QR. See diagnostics for what was read.');
-    }
-    step('QR decoded — ' + text.length + ' digits read (Secure QR is a large number).', 'done');
-    if (text.length < 600) {
-      step('Only ' + text.length + ' digits — a Secure QR is normally 1,500+ digits. The scanner probably misread the dense code, or this is not the card\u2019s Secure QR.', 'fail');
-      renderSteps(); showDiag();
-      return verdict('amber', 'INCOMPLETE READ', 'Too little data for a Secure QR. Rescan closer and sharper, straight-on, with no glare.');
-    }
-
-    /* ---- bytes ---- */
-    const raw = bigIntToBytes(text);
-    diag('raw bytes: ' + raw.length + '  first: ' + hex(raw.slice(0, 8)));
-    step('Converted to a byte stream — ' + raw.length + ' bytes.', 'done');
-
-    /* ---- decompress ---- */
-    const { data, how } = tryInflate(raw);
-    diag('decompression: ' + how + '  -> ' + data.length + ' bytes');
-    step(how === 'none' ? 'No compression detected — using raw bytes.' : how + ' decompressed to ' + data.length + ' bytes.', how === 'none' ? 'info' : 'done');
-
-    /* ---- signature split ---- */
-    if (data.length < 300) {
-      step('Only ' + data.length + ' bytes after decoding — too short to hold a 256-byte signature plus data.', 'fail');
-      renderSteps(); showDiag();
-      return verdict('amber', 'INCOMPLETE READ', 'The decoded stream is too short. This usually means the dense QR was misread. See diagnostics.');
-    }
-    const signed = data.slice(0, data.length - 256), sig = data.slice(data.length - 256);
-    step('Split off the last 256 bytes as the RSA signature.', 'done');
-    diag('signed bytes: ' + signed.length + '  signature: ' + sig.length);
-
-    /* ---- fields ---- */
-    const { fields, photoStart, count } = parseFields(signed);
-    const photoLen = signed.length - photoStart;
-    if (count < 5) {
-      step('Could not find the 0xFF field delimiters — the data layout is not the Secure QR v2 layout.', 'fail');
-      renderSteps(); showDiag();
-      return verdict('amber', 'UNEXPECTED LAYOUT', 'Decoded, but the fields are not where a Secure QR keeps them. See diagnostics.');
-    }
-    step('Parsed ' + count + ' data fields plus ' + photoLen + ' bytes of signed photograph.', 'done');
-
-    /* ---- verify ---- */
-    if (!cert) {
-      renderSteps(); showFields(fields, photoLen); showDiag();
-      return verdict('amber', 'DATA READ — NOT YET VERIFIED', 'Load a signing certificate in Step 1 to verify the signature.');
-    }
-    const sd = new KJUR.crypto.Signature({ alg: 'SHA256withRSA' });
-    sd.init(cert.getPublicKey()); sd.updateHex(hex(signed));
-    const ok = sd.verify(hex(sig));
-    const keyNote = certLabel.startsWith('DEMO') ? ' (checked against the DEMO test key, not UIDAI)' : '';
-
-    renderSteps(); showFields(fields, photoLen); showDiag();
-    if (ok) {
-      step('Signature verified against the loaded public key' + keyNote + '.', 'done'); renderSteps();
-      verdict('ok', 'VERIFIED', 'The issuer signed exactly these bytes and nothing has been altered since' + keyNote + '. Next: OCR the printed card and confirm it matches these fields.');
-    } else {
-      step('Signature did NOT verify — the data no longer matches the signature' + keyNote + '.', 'fail'); renderSteps();
-      verdict('bad', 'HIGH RISK — SIGNATURE INVALID', 'The signed data was altered, or this QR was not issued by the holder of this key. Route to an officer for manual review.');
-    }
-  } catch (err) {
-    step('Processing failed: ' + err.message, 'fail'); renderSteps(); showDiag();
-    verdict('grey', 'COULD NOT PROCESS', err.message);
+    const res = await fetch('/api/analyze', { method:'POST', headers:{ 'content-type':'application/json' }, body: JSON.stringify({ input: q }) });
+    const data = await res.json().catch(() => ({ error: 'The server sent back something we could not read.' }));
+    if (!res.ok || data.error) throw new Error(data.error || ('Server error ' + res.status));
+    loading(false);
+    render(data, q);
+    remember(q);
+    history.replaceState(null, '', '?q=' + encodeURIComponent(q));
+  } catch (e) {
+    loading(false);
+    $('errorMsg').textContent = (e.message || 'Something went wrong.') + (navigator.onLine ? '' : ' You appear to be offline.');
+    $('error').hidden = false;
+    $('retry').focus();
   }
 }
+$('form').addEventListener('submit', e => { e.preventDefault(); run(); });
+$('retry').onclick = run;
+
+/* ---- shared links: /?q=... runs the check straight away ---- */
+const shared = new URLSearchParams(location.search).get('q');
+if (shared) { input.value = shared.slice(0, 6000); detect(); run(); }
+})();
 </script>
 </body>
 </html>

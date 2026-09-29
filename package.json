@@ -1,0 +1,15 @@
+{
+  "name": "secureindia",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node dev-server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.129.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
