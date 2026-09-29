@@ -34,14 +34,41 @@ You need UIDAI's public certificate. Download it from uidai.gov.in
 (Aadhaar Secure QR / offline eKYC documentation) and load it in Step 1
 of the app. It is stored only in your browser session.
 
+## Fake news check (`news.html`)
+
+Paste a forwarded message, headline, article or link. The server searches
+the web, merges articles that report the same thing into **one story with
+one debrief**, and lists every link where that story was found. If the
+input contains several different stories, each gets its own card, debrief
+and links. Fact-checks found are listed separately.
+
+Two modes, chosen automatically on the server:
+
+- **Deep mode** (set `ANTHROPIC_API_KEY` in Vercel -> Project -> Settings ->
+  Environment Variables). Claude searches the live web, reads the link,
+  groups coverage into stories and writes the debriefs. Any source URL
+  Claude did not actually retrieve is dropped before it reaches the page.
+  Each check costs money (model tokens plus web searches), so the endpoint
+  is rate-limited per IP (`RATE_LIMIT_PER_MIN`, default 6).
+- **Keyword mode** (no key). Google News search, grouped by headline
+  similarity, with a rule-based verdict. Free, but cruder: it matches
+  words, it does not understand the claim.
+
+The verdict is an evidence summary, not a ruling. Always open the links.
+
+Run locally: `npm install && npm run dev`, then open
+http://localhost:3000/news.html. Tests: `npm test`.
+
 ## Deploy to Vercel
 
 1. Push this folder to a GitHub repository.
 2. In Vercel: **Add New → Project → Import** the repo.
 3. Framework preset: **Other**. No build command. Output directory: `./`
-4. Deploy.
+4. Optional: add `ANTHROPIC_API_KEY` for deep fake-news analysis.
+5. Deploy.
 
-It is a static site, so there is nothing to configure.
+The Aadhaar page is fully static. The fake news page uses one serverless
+function, `api/analyze.js`.
 
 ## Known limitations
 
