@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SecureIndia Code Walkthrough</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&family=Archivo:wdth,wght@100..125,800..900&display=swap" rel="stylesheet">
+<style>
+/* Layout: a study sheet. Sticky file tabs, then per file: code block beside its explanation (stacked on phones). */
+:root{
+  --paper:#FAF8F3; --sheet:#FFFFFF; --ink:#1B1A18; --muted:#5E5A52; --rule:#E2DDD2;
+  --red:#B8322A; --code-bg:#F2EFE8; --code-ink:#26241F; --viva:#FFF4C2; --viva-ink:#3A3000; --kw:#8A2A1F;
+  --display:"Archivo","Arial Black",system-ui,sans-serif;
+  --sans:"IBM Plex Sans",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#16140F; --sheet:#1E1B16; --ink:#EDE8DD; --muted:#ABA496; --rule:#342F27;
+  --red:#FF8A78; --code-bg:#0F0E0B; --code-ink:#E6E0D2; --viva:#3A3212; --viva-ink:#FFEFA8; --kw:#FFB3A6; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#16140F; --sheet:#1E1B16; --ink:#EDE8DD; --muted:#ABA496; --rule:#342F27;
+  --red:#FF8A78; --code-bg:#0F0E0B; --code-ink:#E6E0D2; --viva:#3A3212; --viva-ink:#FFEFA8; --kw:#FFB3A6; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.6;margin:0;padding-inline:16px;padding-block:0 64px}
+.wrap{max-width:1120px;margin:0 auto}
+header.top{padding-block:36px 18px;border-bottom:3px solid var(--ink)}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--red);font-weight:600}
+h1{font-family:var(--display);font-stretch:112%;font-weight:900;font-size:clamp(32px,6vw,54px);line-height:1.02;margin:.25em 0 .3em;text-wrap:balance}
+.lede{max-width:68ch;color:var(--muted);margin:0}
+nav.files{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--paper);border-bottom:1px solid var(--rule);padding-block:10px;margin-bottom:8px}
+nav.files ol{list-style:none;margin:0;padding:0;display:flex;gap:6px;overflow-x:auto;scrollbar-width:thin}
+nav.files a{display:inline-block;white-space:nowrap;font-family:var(--mono);font-size:13px;color:var(--ink);text-decoration:none;padding:6px 10px;border:1px solid var(--rule);border-radius:4px;background:var(--sheet)}
+nav.files a:hover,nav.files a:focus-visible{border-color:var(--ink)}
+:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+section.file{padding-block:34px 8px;border-bottom:1px solid var(--rule)}
+h2{font-family:var(--display);font-stretch:108%;font-weight:900;font-size:clamp(24px,4vw,34px);line-height:1.1;margin:0 0 6px;text-wrap:balance}
+h2 code{font-family:var(--mono);font-weight:600;font-size:.72em;color:var(--red);background:none;padding:0}
+.meta{font-family:var(--mono);font-size:12.5px;color:var(--muted);margin:0 0 14px}
+h3{font-size:18px;margin:28px 0 10px;text-wrap:balance}
+h3 .ln{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--red);margin-right:8px;letter-spacing:.04em}
+p,li{max-width:70ch}
+.block{display:grid;gap:14px;margin:14px 0 18px}
+@media (min-width:900px){.block{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);align-items:start}}
+.block > *{min-width:0}
+pre{margin:0;background:var(--code-bg);color:var(--code-ink);border:1px solid var(--rule);border-radius:4px;padding:12px 14px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.55;tab-size:2}
+pre .c{color:var(--muted);font-style:italic}
+pre .k{color:var(--kw);font-weight:600}
+code{font-family:var(--mono);font-size:.9em;background:var(--code-bg);padding:1px 5px;border-radius:3px}
+pre code{background:none;padding:0;font-size:inherit}
+.explain p{margin:0 0 10px}
+.explain ul{margin:0 0 10px;padding-left:20px}
+.explain li{margin:4px 0}
+.viva{background:var(--viva);color:var(--viva-ink);border-radius:4px;padding:10px 14px;margin:8px 0 0;font-size:15px}
+.viva b{font-family:var(--mono);font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;display:block;margin-bottom:2px}
+table{border-collapse:collapse;width:100%;font-size:15px}
+.tbl{overflow-x:auto;margin:12px 0}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+td code{white-space:nowrap}
+.flow{counter-reset:s;list-style:none;padding:0;margin:12px 0}
+.flow li{counter-increment:s;padding:8px 0 8px 40px;position:relative;border-bottom:1px dashed var(--rule)}
+.flow li::before{content:counter(s);position:absolute;left:0;top:8px;width:26px;height:26px;border-radius:50%;background:var(--ink);color:var(--paper);font-family:var(--mono);font-size:13px;font-weight:600;display:grid;place-items:center}
+.note{border-left:3px solid var(--red);padding:4px 0 4px 14px;margin:14px 0;color:var(--ink)}
+footer{padding-block:30px 0;color:var(--muted);font-size:14px}
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+</style>
+
+<div class="wrap">
+<header class="top">
+  <div class="eyebrow">SecureIndia Fact Desk · code study guide</div>
+  <h1>Every file, in the order the code is written</h1>
+  <p class="lede">Each block of code sits next to a plain-English explanation. Line numbers match the files on <code>main</code>. The yellow boxes are one-sentence answers you can say out loud in the viva.</p>
+</header>
+
+<nav class="files" aria-label="Files">
+  <ol>
+    <li><a href="#map">Project map</a></li>
+    <li><a href="#index">index.html</a></li>
+    <li><a href="#api">api/analyze.js</a></li>
+    <li><a href="#news">lib/newsSearch.js</a></li>
+    <li><a href="#claude">lib/claudeAnalyze.js</a></li>
+    <li><a href="#config">config files</a></li>
+    <li><a href="#tests">tests</a></li>
+    <li><a href="#js">JS basics</a></li>
+  </ol>
+</nav>
+
+<!-- ===================================================== MAP -->
+<section class="file" id="map">
+  <h2>Project map</h2>
+  <p class="note">There are <b>no Python or Java files</b>. The whole project is <b>JavaScript</b>. <code>index.html</code> also contains HTML (the structure) and CSS (the look). If an examiner asks, say: "The frontend is HTML, CSS and JavaScript; the backend is JavaScript running on Node.js as a Vercel serverless function."</p>
+  <div class="tbl"><table>
+    <thead><tr><th>File</th><th>Lines</th><th>Runs where</th><th>Job</th></tr></thead>
+    <tbody>
+      <tr><td><code>index.html</code></td><td>670</td><td>User's browser</td><td>The whole website: layout (HTML), design and animation (CSS), behaviour (JavaScript).</td></tr>
+      <tr><td><code>api/analyze.js</code></td><td>50</td><td>Vercel server</td><td>The front door of the backend. Checks the input, picks the mode, returns JSON.</td></tr>
+      <tr><td><code>lib/newsSearch.js</code></td><td>384</td><td>Vercel server</td><td>Keyword mode: searches news sources, filters, merges duplicates, decides the verdict.</td></tr>
+      <tr><td><code>lib/claudeAnalyze.js</code></td><td>99</td><td>Vercel server</td><td>Deep AI mode: asks Claude to search and read the web, then removes any link it did not really open.</td></tr>
+      <tr><td><code>dev-server.js</code></td><td>25</td><td>Your laptop</td><td>Runs the site locally for testing (<code>npm run dev</code>).</td></tr>
+      <tr><td><code>test/news.test.js</code></td><td>188</td><td>Your laptop</td><td>17 automated tests (<code>npm test</code>).</td></tr>
+      <tr><td><code>package.json</code>, <code>vercel.json</code></td><td>15, 8</td><td>—</td><td>Settings: dependencies, scripts, server time limit, redirect.</td></tr>
+    </tbody>
+  </table></div>
+  <h3>What happens when someone presses "Scan the web"</h3>
+  <ol class="flow">
+    <li>The browser (<code>index.html</code>, function <code>run()</code>) sends the text to <code>/api/analyze</code> using <code>fetch</code>.</li>
+    <li><code>api/analyze.js</code> checks the text length and the rate limit, then chooses a mode.</li>
+    <li>If an API key exists, <code>claudeSearch()</code> runs; otherwise <code>keywordSearch()</code> runs.</li>
+    <li>Keyword mode asks Google News, Bing News and GDELT at the same time, keeps only relevant articles, groups duplicates into stories and decides a verdict.</li>
+    <li>The server sends back one JSON object: verdict, stories, sources, fact-checks.</li>
+    <li>The browser's <code>render()</code> turns that JSON into the stamp, tally and story cards.</li>
+  </ol>
+  <div class="viva"><b>Say it in the viva</b>"The browser sends the claim to one serverless API. The API searches three news sources in parallel, filters them for relevance, clusters duplicates into stories, scores each story by the credibility of its sources, and returns JSON that the frontend renders."</div>
+</section>
+
+<!-- ===================================================== INDEX -->
+<section class="file" id="index">
+  <h2>index.html <code>670 lines</code></h2>
+  <p class="meta">Three parts: HEAD + CSS (lines 1–297) · HTML body (298–461) · JavaScript (463–668)</p>
+
+  <h3><span class="ln">L1–11</span>The head: page information</h3>
+  <div class="block">
+<pre><code>&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8"&gt;
+&lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;
+&lt;title&gt;SecureIndia — Fake News Check&lt;/title&gt;
+&lt;meta name="description" content="Paste any news…"&gt;
+&lt;meta name="theme-color" content="#CDB68C"&gt;
+&lt;link rel="preconnect" href="https://fonts.googleapis.com"&gt;
+&lt;link href="https://fonts.googleapis.com/css2?family=Archivo…" rel="stylesheet"&gt;</code></pre>
+    <div class="explain">
+      <ul>
+        <li><code>&lt;!DOCTYPE html&gt;</code> tells the browser this is modern HTML5.</li>
+        <li><code>lang="en"</code> tells screen readers the language.</li>
+        <li><code>charset="utf-8"</code> lets the page show ₹, Hindi letters and emoji correctly.</li>
+        <li><code>viewport</code> makes the page fit phone screens instead of showing a shrunken desktop page.</li>
+        <li><code>title</code> is the browser tab text; <code>description</code> is what Google and WhatsApp previews show.</li>
+        <li><code>theme-color</code> colours the phone's address bar kraft brown.</li>
+        <li><code>preconnect</code> opens the connection to Google Fonts early so text appears faster.</li>
+        <li>The last line loads four fonts: <b>Archivo</b> (headlines), <b>Courier Prime</b> (typewriter labels), <b>IBM Plex Sans</b> and its <b>Devanagari</b> version (body text, Hindi support).</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3><span class="ln">L13–28</span>CSS design tokens (the colour and font settings)</h3>
+  <div class="block">
+<pre><code>:root{
+  --desk:#CDB68C; --paper:#FBF7EE; --newsprint:#E7E1D2;
+  --ink:#1C1A17; --red:#C3302A; --green:#1F7A47;
+  --amber:#9A5B00; --grey:#5C5A55; --blue:#2446A8;
+  --string:#B3261E; --tape:rgba(236,224,178,.82);
+  --hilite:#FFE45C;
+  --display:"Archivo","Arial Black",system-ui,sans-serif;
+  --type:"Courier Prime","Courier New",monospace;
+  --sans:"IBM Plex Sans","IBM Plex Sans Devanagari",…;
+  --frame:125ms; <span class="c">/* one drawing at 8 fps */</span>
+  --noise:url("data:image/svg+xml,…feTurbulence…");
+}</code></pre>
+    <div class="explain">
+      <p><code>:root</code> holds <b>CSS variables</b> (names starting with <code>--</code>). Every colour on the page is taken from here with <code>var(--name)</code>, so changing one value changes the whole site.</p>
+      <ul>
+        <li>Colours are named after the desk's materials: kraft desk, paper, newsprint, ink, stamp red, red string, masking tape, highlighter.</li>
+        <li>Each font has a fallback (like <code>"Arial Black"</code>) in case Google Fonts fails to load.</li>
+        <li><code>--frame:125ms</code> is one animation frame at 8 frames per second. All stop-motion timings are multiples of it.</li>
+        <li><code>--noise</code> is a tiny SVG image, written inside the CSS, that draws a paper-grain texture using <code>feTurbulence</code> (random noise).</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3><span class="ln">L29–46</span>Dark mode ("night desk")</h3>
+  <div class="block">
+<pre><code>@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --desk:#1D1914; --paper:#ECE4D3; --on-desk:#EDE4D3; …
+  }
+}
+:root[data-theme="dark"]{ …same dark values… }</code></pre>
+    <div class="explain">
+      <p>The same variables get dark values in two cases:</p>
+      <ul>
+        <li>when the phone or laptop is set to dark mode (<code>prefers-color-scheme: dark</code>) and the user hasn't forced light;</li>
+        <li>when the user taps the lamp button, which sets <code>data-theme="dark"</code> on the page.</li>
+      </ul>
+      <p>Only the desk goes dark. The paper stays light, like paper under a lamp.</p>
+    </div>
+  </div>
+
+  <h3><span class="ln">L47–75</span>Base styles and paper "primitives"</h3>
+  <div class="block">
+<pre><code>body{ font-family:var(--sans); background:var(--noise), radial-gradient(…), var(--desk) }
+:focus-visible{ outline:3px solid var(--ink); box-shadow:0 0 0 6px var(--hilite) }
+.skip{ position:absolute; left:-999px }  .skip:focus{ left:8px }
+.paper{ background:var(--paper); box-shadow:var(--shadow) }
+.torn::before, .torn::after{ -webkit-mask:url("…zigzag svg…") repeat-x }
+.tape{ background:var(--tape); rotate:-3deg; clip-path:polygon(…) }
+.stamp{ border:3px solid currentColor; outline:1.5px solid currentColor; outline-offset:2px }</code></pre>
+    <div class="explain">
+      <ul>
+        <li><b>body</b> stacks three backgrounds: the grain, a soft lamp glow at the top, and the kraft colour.</li>
+        <li><b>:focus-visible</b> draws a thick ring when you move around with the keyboard (accessibility).</li>
+        <li><b>.skip</b> is a "Skip to the checker" link, hidden off-screen until a keyboard user presses Tab.</li>
+        <li><b>.paper</b> is any sheet of paper: light background plus a soft shadow.</li>
+        <li><b>.torn</b> adds zig-zag torn edges above and below, using a mask shaped like a jagged line.</li>
+        <li><b>.tape</b> is the masking-tape strip: semi-transparent, slightly rotated, with uneven ends from <code>clip-path</code>.</li>
+        <li><b>.stamp</b> is a rubber stamp: a double border (<code>border</code> + <code>outline</code>) in the text colour. The <code>::after</code> overlay adds ink speckles.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3><span class="ln">L76–85</span>Stop-motion animations (keyframes)</h3>
+  <div class="block">
+<pre><code>@keyframes boil{0%{translate:0 0}33%{translate:.6px -.7px}
+                66%{translate:-.7px .4px}100%{translate:0 0}}
+@keyframes drop{0%{opacity:0;translate:0 -70px;rotate:calc(var(--r) - 9deg)}
+  34%{…-18px…}67%{…5px…}100%{opacity:1;translate:0 0;rotate:var(--r)}}
+@keyframes slam{0%{opacity:0;scale:2.4}40%{scale:1.3}60%{scale:.9}80%{scale:1.04}100%{scale:1}}
+@keyframes thud{…small shake…}
+@keyframes draw{to{stroke-dashoffset:0}}</code></pre>
+    <div class="explain">
+      <p>A <b>keyframe</b> lists the poses of an animation. Every animation that uses these runs with <code>steps(1)</code>, so it <b>jumps</b> from pose to pose instead of sliding. That jumping is what makes it look like stop-motion.</p>
+      <ul>
+        <li><b>boil</b>: a 3-frame wobble of under 1 pixel, like hand-drawn animation "boiling".</li>
+        <li><b>drop</b>: a clipping falls onto the desk in 3 frames: in the air, bouncing, then settled at its tilt <code>--r</code>.</li>
+        <li><b>slam</b>: the stamp comes down big, overshoots, then settles.</li>
+        <li><b>thud</b>: the desk shakes when the stamp hits.</li>
+        <li><b>draw</b>: the red string draws itself (a dashed line whose dash offset shrinks to 0).</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3><span class="ln">L87–151</span>Masthead and hero</h3>
+  <div class="block">
+<pre><code>.brand b{ font-family:var(--display); font-stretch:125%; font-weight:900 }
+.rule{ border-top:3px solid; border-bottom:1px solid }
+.hero{ display:grid }
+@media (min-width:960px){ .hero{ grid-template-columns:1.05fr .95fr } }
+.ransom i{ rotate:var(--r); animation:boil … 2.6s 11 both }
+.scene{ display:none }  @media (min-width:960px){ .scene{ display:block } }
+.clip{ position:absolute; clip-path:var(--e1);
+  animation:drop … var(--d) both, boil …, boil-edge … }
+.pin{ background:radial-gradient(circle at 35% 30%, #ff8f85, var(--string), #6d130e) }
+.strings path{ stroke-dasharray:300; stroke-dashoffset:300; animation:draw … steps(6) }</code></pre>
+    <div class="explain">
+      <ul>
+        <li>The <b>masthead</b> copies a newspaper nameplate: an extra-wide bold name, a thick-and-thin double rule, and a dateline.</li>
+        <li><b>.hero</b> is one column on phones. From 960px wide it becomes two: text on the left, desk scene on the right.</li>
+        <li><b>.ransom i</b>: each letter of "FORWARD?" is its own paper scrap with its own tilt. It boils 11 times (about 4 seconds), then stops.</li>
+        <li>The <b>.scene</b> only shows on wide screens. Each <b>.clip</b> gets a delay <code>--d</code>, so the clippings drop one after another.</li>
+        <li><b>.pin</b> is a red push-pin drawn with a radial gradient, which gives it a 3D shine.</li>
+        <li><b>.strings path</b>: the red string draws in 6 chunks (<code>steps(6)</code>), like a stop-motion string being pulled.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3><span class="ln">L152–201</span>Notepad, buttons, loading screen</h3>
+  <div class="block">
+<pre><code>.pad .binding{ background:#7A2A1E; background-image:radial-gradient(circle …) }
+textarea{ background-image:repeating-linear-gradient(transparent 0 27px,
+          rgba(36,70,168,.25) 27px 28px); line-height:28px }
+.btn{ border:2px solid var(--ink); box-shadow:3px 3px 0 var(--ink) }
+.btn:active{ translate:3px 3px; box-shadow:0 0 0 }
+.tag::before{ …small circle = the hole in a paper tag… }
+.lens{ animation:sweep … steps(16) infinite alternate }
+.stages li::before{ content:"[ ] " }  .stages li.done::before{ content:"[x] " }</code></pre>
+    <div class="explain">
+      <ul>
+        <li><b>.binding</b> is the dark-red top strip of a notepad; the repeating circles are its punched holes.</li>
+        <li>The <b>textarea</b> has ruled lines drawn every 28px, which matches the text line height, so writing sits on the lines.</li>
+        <li><b>.btn</b> has a hard offset shadow like layered card. When pressed (<code>:active</code>) it moves into its shadow.</li>
+        <li><b>.tag</b> is an example claim shaped like a paper luggage tag with a hole.</li>
+        <li><b>.lens</b> is the magnifying glass. It hops across the clippings in 16 steps and back, while scanning.</li>
+        <li><b>.stages</b> shows a typewriter checklist: <code>[ ]</code> waiting, <code>[»]</code> in progress, <code>[x]</code> done.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3><span class="ln">L202–295</span>Results, story cards, responsive and reduced motion</h3>
+  <div class="block">
+<pre><code>.tally{ display:grid; grid-template-columns:auto 1fr auto }
+.verdict .vstamp.play{ animation:slam … }
+.story{ rotate:var(--r); --r:-.35deg; animation:drop … var(--d) both }
+.src a .t{ background:linear-gradient(transparent 58%, var(--hilite) 58%) 0 0/0% 100% no-repeat }
+.src a:hover .t{ background-size:100% 100%; transition:… steps(3) }
+@media (max-width:560px){ …phone layout… }
+@media (prefers-reduced-motion: reduce){ *{ animation:none!important } }</code></pre>
+    <div class="explain">
+      <ul>
+        <li><b>.tally</b> is the "23 articles → 6 stories" row: number, red string, number.</li>
+        <li><b>.vstamp.play</b>: the verdict stamp slams down each time a new result arrives.</li>
+        <li><b>.story</b>: each story card is a clipping, tilted slightly, that drops in with a small delay.</li>
+        <li><b>.src .t</b>: hovering a source link swipes a yellow highlighter across its title in 3 frames.</li>
+        <li><b>max-width:560px</b>: phone adjustments, such as full-width buttons and smaller padding.</li>
+        <li><b>prefers-reduced-motion</b>: if the user has asked their device for less motion, every animation is switched off and the final picture is shown. This is an accessibility rule.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3><span class="ln">L298–358</span>HTML: header and hero</h3>
+  <div class="block">
+<pre><code>&lt;a class="skip" href="#input"&gt;Skip to the checker&lt;/a&gt;
+&lt;header class="mast wrap"&gt; …brand, nav, theme button, rule, dateline… &lt;/header&gt;
+&lt;main class="wrap" id="main"&gt;
+ &lt;section class="hero" aria-labelledby="h1"&gt;
+  &lt;h1 id="h1"&gt;Got a
+   &lt;span class="sr"&gt;forward?&lt;/span&gt;
+   &lt;span class="ransom" aria-hidden="true"&gt;&lt;i style="--r:-4deg;…"&gt;F&lt;/i&gt;…&lt;/span&gt;
+   &lt;span class="l2"&gt;Check it before you share it.&lt;/span&gt;
+  &lt;/h1&gt;
+  &lt;div class="scene" aria-hidden="true"&gt; …clips, pins, svg strings, card, stamp… &lt;/div&gt;</code></pre>
+    <div class="explain">
+      <ul>
+        <li><code>header</code>, <code>main</code>, <code>section</code> and <code>nav</code> are <b>semantic tags</b>. They tell screen readers what each part of the page is.</li>
+        <li>The ransom letters are hidden from screen readers (<code>aria-hidden</code>). The hidden <code>.sr</code> span reads "forward?" instead, so a blind user hears "Got a forward? Check it before you share it."</li>
+        <li>Each letter's tilt and colours are set inline (<code>style="--r:-4deg"</code>).</li>
+        <li>The desk scene is decoration, so it is also hidden from screen readers.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3><span class="ln">L359–460</span>HTML: form, loading, error, results, guide</h3>
+  <div class="block">
+<pre><code>&lt;form class="pad paper" id="form" novalidate&gt;
+  &lt;label for="input"&gt;What do you want to check?&lt;/label&gt;
+  &lt;textarea id="input" maxlength="6000" aria-describedby="detect"&gt;&lt;/textarea&gt;
+  &lt;div class="detect" id="detect" aria-live="polite"&gt;…&lt;/div&gt;
+  &lt;button type="button" id="paste"&gt;Paste&lt;/button&gt;
+  &lt;button type="submit" id="go"&gt;Scan the web&lt;/button&gt;
+  &lt;div class="try" id="examples"&gt; …3 example tags… &lt;/div&gt;
+&lt;/form&gt;
+&lt;section id="loading" hidden aria-live="polite" aria-busy="true"&gt;…&lt;/section&gt;
+&lt;section id="error" hidden role="alert"&gt;…&lt;/section&gt;
+&lt;section id="results" hidden&gt; tally · verdict · notes · #stories · #fcBox &lt;/section&gt;
+&lt;section id="guide"&gt; …how to read a result… &lt;/section&gt;</code></pre>
+    <div class="explain">
+      <ul>
+        <li>The <b>label</b> is linked to the textarea (<code>for="input"</code>), so tapping the label focuses the box and screen readers announce it.</li>
+        <li><code>maxlength="6000"</code> stops anyone typing more than the server accepts.</li>
+        <li><code>aria-live="polite"</code> makes screen readers announce changes, such as "Link detected" or the loading steps.</li>
+        <li>Sections start <code>hidden</code>. JavaScript shows exactly one of loading, error or results at a time.</li>
+        <li><code>role="alert"</code> makes the error announced immediately.</li>
+        <li><code>#stories</code> starts empty. JavaScript fills it with one card per story.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3><span class="ln">L463–475</span>JavaScript: helpers</h3>
+  <div class="block">
+<pre><code>(() =&gt; {
+const $ = id =&gt; document.getElementById(id);
+const esc = s =&gt; String(s ?? '').replace(/[&amp;&lt;&gt;"']/g, c =&gt; ({'&amp;':'&amp;amp;', …}[c]));
+const safeUrl = u =&gt; /^https?:\/\//i.test(u || '') ? u : '#';
+const store = { get(k,d){ try{…localStorage…}catch{return d} }, set(k,v){ try{…}catch{} } };
+const reduced = () =&gt; matchMedia('(prefers-reduced-motion: reduce)').matches;
+const replay = el =&gt; { el.classList.remove('play'); void el.offsetWidth; el.classList.add('play'); };
+$('dateline').textContent = new Date().toLocaleDateString('en-IN', {…});</code></pre>
+    <div class="explain">
+      <ul>
+        <li><code>(() =&gt; { … })()</code> wraps all the code in a function that runs immediately, so none of its variables leak into the rest of the page.</li>
+        <li><code>$</code> is a shortcut: <code>$('go')</code> finds the element with <code>id="go"</code>.</li>
+        <li><b>esc</b> is the security guard: it turns <code>&lt;</code>, <code>&gt;</code>, <code>&amp;</code> and quotes into safe codes before showing any text from the internet, which blocks hackers injecting scripts (XSS).</li>
+        <li><b>safeUrl</b> only allows links starting with http or https, which blocks <code>javascript:</code> links.</li>
+        <li><b>store</b> reads and writes browser storage (recent checks, theme) inside <code>try/catch</code>, so private browsing can't crash the page.</li>
+        <li><b>replay</b> restarts an animation: remove the class, force the browser to notice (<code>offsetWidth</code>), add it back.</li>
+        <li>The last line writes today's date into the dateline in Indian format.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3><span class="ln">L477–512</span>Theme, input detection, paste, examples, recent checks</h3>
+  <div class="block">
+<pre><code>$('theme').onclick = () =&gt; { …flip light/dark, save choice… };
+function detect(){
+  const v = input.value.trim();
+  const isLink = /^https?:\/\/\S+$/i.test(v);
+  $('detectText').textContent = !v ? 'Waiting for your news'
+    : isLink ? `Link detected · ${host}` : `News text · ${words} words`;
+}
+input.addEventListener('input', detect);
+input.addEventListener('keydown', e =&gt; { if (e.key==='Enter' &amp;&amp; (e.ctrlKey||e.metaKey)) run(); });
+$('paste').onclick = async () =&gt; { input.value = await navigator.clipboard.readText(); … };
+$('examples').addEventListener('click', e =&gt; { const c = e.target.closest('.tag'); … run(); });
+function remember(q){ store.set('si-recent', [q, …old without q].slice(0, 4)); renderRecent(); }</code></pre>
+    <div class="explain">
+      <ul>
+        <li><b>Theme button</b>: works out whether the page is dark right now, switches to the other theme, and saves the choice.</li>
+        <li><b>detect()</b> runs on every keystroke. A regular expression checks whether the text is a single link; the small label then says "Link detected · site" or "News text · 9 words".</li>
+        <li><b>Ctrl+Enter</b> (Cmd+Enter on Mac) runs a check from the keyboard.</li>
+        <li><b>Paste</b> reads the clipboard. If the browser refuses, it tells the user to long-press and paste.</li>
+        <li><b>Examples</b>: one listener on the container handles all three tags ("event delegation"); <code>closest('.tag')</code> finds which one was clicked.</li>
+        <li><b>remember()</b> puts the new check first, removes duplicates, keeps 4, and saves them on this device only.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3><span class="ln">L514–572</span>Building the story cards</h3>
+  <div class="block">
+<pre><code>const kind = s =&gt; s.official ? 'official' : s.factCheck ? 'factcheck'
+               : s.established ? 'established' : 'other';
+const RANK = { factcheck:0, official:1, established:2, other:3 };
+function sourceLi(s, hidden){ return `&lt;li class="src"&gt;&lt;a href="${esc(safeUrl(s.url))}" …&gt;
+   …pin avatar, ${esc(s.title)}, outlet · date, tag…&lt;/a&gt;&lt;/li&gt;`; }
+function mixBar(sources){ …count each kind, draw coloured segments + legend… }
+function storyCard(s, i, n){
+  const src = [...s.sources].sort((a,b) =&gt; RANK[kind(a)] - RANK[kind(b)]);
+  return `&lt;article class="story paper torn" style="--d:${…}s"&gt;
+    Story ${i+1} of ${n} · stamp · ${src.length} articles
+    &lt;h3&gt;${esc(s.headline)}&lt;/h3&gt; &lt;p&gt;Debrief ${esc(s.debrief)}&lt;/p&gt;
+    ${mixBar(src)} &lt;ul&gt;${src.map((x,j) =&gt; sourceLi(x, j &gt;= 4))}&lt;/ul&gt;
+    ${src.length &gt; 4 ? '&lt;button class="more"&gt;+ Show all…' : ''}`; }</code></pre>
+    <div class="explain">
+      <ul>
+        <li><b>kind()</b> sorts a source into one of 4 types: official, fact-checker, established outlet or other site.</li>
+        <li><b>RANK</b> orders the sources in each card so the strongest evidence is listed first.</li>
+        <li><b>sourceLi()</b> builds one source row: a coloured pin with the outlet's first letter, the title, outlet and date, and a badge. Every piece of text passes through <code>esc()</code>.</li>
+        <li><b>mixBar()</b> counts each kind and draws the coloured bar, with a text legend, so colour is never the only clue.</li>
+        <li><b>storyCard()</b> builds one whole card with a template string (backticks <code>`…${value}…`</code>). Only 4 sources show at first; the rest are hidden behind "Show all".</li>
+        <li>The <b>"Show all"</b> click handler un-hides the extra sources and moves keyboard focus to the first newly shown one.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3><span class="ln">L574–621</span>render(): turning JSON into the page</h3>
+  <div class="block">
+<pre><code>function verdictStamp(label){ …'Likely false' red / 'Likely true' green / … }
+function render(r, q){
+  $('nFound').textContent = found;  $('nStories').textContent = stories.length;
+  $('vStamp').textContent = stampText;  $('vText').textContent = v.reasoning;
+  $('share').href = 'https://wa.me/?text=' + encodeURIComponent(…);
+  $('stories').innerHTML = stories.map(storyCard).join('');
+  const shownUrls = new Set(stories.flatMap(s =&gt; s.sources.map(x =&gt; x.url)));
+  const fc = r.factChecks.filter(f =&gt; !shownUrls.has(f.url));
+  replay($('vStamp')); $('resultsTitle').focus(); $('results').scrollIntoView(…);
+}</code></pre>
+    <div class="explain">
+      <ul>
+        <li><b>verdictStamp()</b> turns the server's verdict into a short stamp word and a colour.</li>
+        <li><b>render()</b> fills in the tally numbers, the stamp, the reasoning and the mode label.</li>
+        <li>It builds the <b>WhatsApp link</b>: <code>wa.me/?text=…</code> with the claim, the verdict and a link back to this check.</li>
+        <li>It fills <code>#stories</code> with one card per story.</li>
+        <li>It removes any fact-check link already shown in a story (<code>Set</code> of URLs), so <b>no link appears twice</b>.</li>
+        <li>Finally it replays the stamp animation, moves keyboard focus to the results and scrolls there.</li>
+      </ul>
+      <div class="viva"><b>Say it in the viva</b>"All text from the server is written with <code>textContent</code> or passed through my <code>esc()</code> function before it goes into the page, so malicious article titles can't inject code."</div>
+    </div>
+  </div>
+
+  <h3><span class="ln">L623–667</span>run(): the main action</h3>
+  <div class="block">
+<pre><code>let timer, busy = false;
+function loading(on){ …show/hide loading; tick the checklist every 0.5 s… }
+async function run(){
+  const q = input.value.trim();
+  if (busy) return;
+  if (q.length &lt; 8) { …ask for more…; return; }
+  loading(true);
+  try {
+    const res = await fetch('/api/analyze', { method:'POST',
+      headers:{'content-type':'application/json'}, body: JSON.stringify({ input: q }) });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error);
+    loading(false); render(data, q); remember(q);
+    history.replaceState(null, '', '?q=' + encodeURIComponent(q));
+  } catch (e) { loading(false); $('errorMsg').textContent = e.message; $('error').hidden = false; }
+}
+$('form').addEventListener('submit', e =&gt; { e.preventDefault(); run(); });
+const shared = new URLSearchParams(location.search).get('q');
+if (shared) { input.value = shared; run(); }</code></pre>
+    <div class="explain">
+      <ul>
+        <li><b>busy</b> stops a double tap from sending two checks at once.</li>
+        <li>Text under 8 characters is rejected before anything is sent.</li>
+        <li><b>loading()</b> shows the magnifier screen and ticks the checklist on a timer, with an elapsed-seconds counter.</li>
+        <li><code>fetch</code> sends the claim to the server as JSON. <code>await</code> waits for the answer without freezing the page.</li>
+        <li>If anything fails, <code>catch</code> shows the "Not finished" stamp with the real error message and a Try again button.</li>
+        <li>On success it renders, saves the check to recent, and changes the address to <code>?q=…</code>, so the address bar holds a shareable link.</li>
+        <li><code>e.preventDefault()</code> stops the form reloading the page.</li>
+        <li>The last two lines make shared links work: opening <code>/?q=something</code> fills the box and runs the check automatically.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== API -->
+<section class="file" id="api">
+  <h2>api/analyze.js <code>50 lines</code></h2>
+  <p class="meta">The backend's front door. Vercel runs this function each time <code>/api/analyze</code> is called.</p>
+
+  <h3><span class="ln">L1–14</span>Imports, limits, rate limiter</h3>
+  <div class="block">
+<pre><code><span class="c">// POST /api/analyze  { "input": "&lt;news text or article link&gt;" }</span>
+<span class="k">import</span> { claudeSearch } <span class="k">from</span> '../lib/claudeAnalyze.js';
+<span class="k">import</span> { keywordSearch } <span class="k">from</span> '../lib/newsSearch.js';
+
+<span class="k">const</span> MAX_INPUT = 6000;
+<span class="k">const</span> hits = <span class="k">new</span> Map(); <span class="c">// best-effort per-instance rate limit</span>
+
+<span class="k">function</span> limited(ip) {
+  <span class="k">const</span> now = Date.now(), win = 60_000, max = Number(process.env.RATE_LIMIT_PER_MIN || 6);
+  <span class="k">const</span> list = (hits.get(ip) || []).filter(t =&gt; now - t &lt; win);
+  list.push(now);
+  hits.set(ip, list);
+  <span class="k">return</span> list.length &gt; max;
+}</code></pre>
+    <div class="explain">
+      <ul>
+        <li><b>L2–3</b> bring in the two search engines from the <code>lib</code> folder.</li>
+        <li><b>L5</b> sets the maximum input to 6,000 characters.</li>
+        <li><b>L6</b> <code>hits</code> is a Map from IP address to a list of request times.</li>
+        <li><b>L8–14</b> <b>limited()</b>: take this IP's past request times, keep only those from the last 60 seconds (<code>60_000</code> ms), add now, and say "limited" if there are more than 6. The limit can be changed with the <code>RATE_LIMIT_PER_MIN</code> setting.</li>
+      </ul>
+      <p>Limitation: the Map lives in one server instance's memory, so the limit is basic, not bulletproof.</p>
+    </div>
+  </div>
+
+  <h3><span class="ln">L16–31</span>Reading and checking the request</h3>
+  <div class="block">
+<pre><code><span class="k">export default async function</span> handler(req, res) {
+  <span class="k">let</span> body = req.body;
+  <span class="k">if</span> (req.method === 'GET') {
+    <span class="k">const</span> u = <span class="k">new</span> URL(req.url, 'http://x');
+    body = { input: u.searchParams.get('q') || '', mode: u.searchParams.get('mode') || '' };
+  } <span class="k">else if</span> (req.method !== 'POST') {
+    <span class="k">return</span> res.status(405).json({ error: 'Use GET or POST' });
+  }
+  <span class="k">if</span> (<span class="k">typeof</span> body === 'string') { <span class="k">try</span> { body = JSON.parse(body); } <span class="k">catch</span> { body = {}; } }
+  <span class="k">const</span> input = String((body &amp;&amp; body.input) || '').trim();
+  <span class="k">if</span> (input.length &lt; 8) <span class="k">return</span> res.status(400).json({ error: '…' });
+  <span class="k">if</span> (input.length &gt; MAX_INPUT) <span class="k">return</span> res.status(400).json({ error: '…' });
+  <span class="k">const</span> ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
+  <span class="k">if</span> (limited(ip)) <span class="k">return</span> res.status(429).json({ error: 'Too many checks…' });</code></pre>
+    <div class="explain">
+      <ul>
+        <li><b>L16</b> <code>handler</code> is the function Vercel calls. <code>req</code> is the incoming request, <code>res</code> is how we reply.</li>
+        <li><b>L18–21</b> A GET request (for example <code>/api/analyze?q=…</code>) reads the claim from the address.</li>
+        <li><b>L22–24</b> Anything other than GET or POST gets error <b>405</b> ("method not allowed").</li>
+        <li><b>L25</b> If the body arrived as plain text, turn it into an object. Bad JSON becomes an empty object instead of crashing.</li>
+        <li><b>L26</b> Get the input text, or an empty string, with spaces trimmed.</li>
+        <li><b>L27–28</b> Too short or too long means error <b>400</b> ("bad request") with a clear message.</li>
+        <li><b>L30</b> The visitor's IP comes from the <code>x-forwarded-for</code> header that Vercel adds.</li>
+        <li><b>L31</b> Too many checks means error <b>429</b> ("too many requests").</li>
+      </ul>
+      <div class="viva"><b>Say it in the viva</b>"The server never trusts the browser: it validates length and rate on the server side too, and returns proper HTTP status codes: 400, 405, 429 and 502."</div>
+    </div>
+  </div>
+
+  <h3><span class="ln">L33–50</span>Choosing the mode and replying</h3>
+  <div class="block">
+<pre><code>  <span class="k">const</span> wantDeep = body.mode !== 'keyword' &amp;&amp;
+    !!(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
+  <span class="k">try</span> {
+    <span class="k">if</span> (wantDeep) {
+      <span class="k">try</span> { <span class="k">return</span> res.status(200).json(<span class="k">await</span> claudeSearch(input)); }
+      <span class="k">catch</span> (e) {
+        <span class="k">const</span> report = <span class="k">await</span> keywordSearch(input);
+        report.notice = 'Deep search failed (' + e.message + '). Showing keyword…';
+        <span class="k">return</span> res.status(200).json(report);
+      }
+    }
+    <span class="k">const</span> report = <span class="k">await</span> keywordSearch(input);
+    <span class="k">if</span> (!process.env.ANTHROPIC_API_KEY) report.notice = 'Keyword mode: …';
+    <span class="k">return</span> res.status(200).json(report);
+  } <span class="k">catch</span> (e) {
+    <span class="k">return</span> res.status(502).json({ error: e.message || 'Search failed' });
+  }
+}</code></pre>
+    <div class="explain">
+      <ul>
+        <li><b>L33</b> Deep mode runs only if a key exists and the request didn't ask for keyword mode. <code>!!</code> turns any value into true or false.</li>
+        <li><b>L36–42</b> Try deep mode. If it fails for any reason, <b>fall back</b> to keyword mode and add a notice saying so.</li>
+        <li><b>L44–46</b> With no key, run keyword mode and add the "Keyword mode" notice.</li>
+        <li><b>L47–48</b> If even keyword mode fails (for example, all news sites down), reply with error <b>502</b> ("bad gateway").</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== NEWS -->
+<section class="file" id="news">
+  <h2>lib/newsSearch.js <code>384 lines</code></h2>
+  <p class="meta">Keyword mode. The core logic, and the file examiners are most likely to ask about.</p>
+
+  <h3><span class="ln">L1–35</span>Word lists</h3>
+  <div class="block">
+<pre><code><span class="k">const</span> STOP = <span class="k">new</span> Set(('a an the and or … news report latest india indian …').split(' '));
+<span class="k">const</span> ESTABLISHED = ['thehindu.com', 'indianexpress.com', 'ndtv.com', 'timesofindia', …];
+<span class="k">const</span> FACT_CHECKERS = ['altnews.in', 'boomlive.in', 'factly.in', 'pib.gov.in/factcheck', …];
+<span class="k">const</span> DEBUNK = /\b(fake|false(ly)?|hoax|misleading|debunk(s|ed|ing)?|morphed|doctored|
+   fabricated|misinformation|not true|baseless|scam|ai[- ]generated|deepfake|old video|misattributed)\b/i;</code></pre>
+    <div class="explain">
+      <ul>
+        <li><b>STOP</b>: common words ignored when comparing headlines. A <code>Set</code> makes lookups instant.</li>
+        <li><b>ESTABLISHED</b>: news outlets with editorial standards, matched by web address or name.</li>
+        <li><b>FACT_CHECKERS</b>: dedicated fact-checking organisations.</li>
+        <li><b>DEBUNK</b>: a <b>regular expression</b> that finds words meaning "this is false". <code>\b</code> means whole words only, and <code>i</code> means ignore capital letters. It is deliberately strict: "fact check" and "no" are not on it, because fact-checks can also confirm true claims.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3><span class="ln">L37–62</span>tokens(), similarity(), queryFrom()</h3>
+  <div class="block">
+<pre><code><span class="k">export function</span> tokens(s) {
+  <span class="k">return</span> (s || '').toLowerCase().replace(/(\d),(?=\d{2,3}\b)/g, '$1')
+    .replace(/₹\s?/g, ' rupee ').replace(/\brs\.?(?=\s?\d)/g, ' rupee ')
+    .replace(/(\d)\s?bn\b/g, '$1 billion').replace(/(\d)\s?cr\b/g, '$1 crore')
+    .replace(/[^a-z0-9ऀ-ॿ ]+/g, ' ')
+    .split(/\s+/).filter(w =&gt; (w.length &gt; 2 || /^\d{2}$/.test(w)) &amp;&amp; !STOP.has(w));
+}
+<span class="k">export function</span> similarity(a, b) {
+  …count words in both… <span class="k">return</span> inter / Math.min(A.size, B.size);
+}
+<span class="k">export function</span> queryFrom(text, max = 8) { …the 8 most frequent words, in original order… }</code></pre>
+    <div class="explain">
+      <p><b>tokens()</b> turns any text into a clean list of important words, step by step:</p>
+      <ul>
+        <li>lowercase everything, and remove commas inside numbers ("2,000" becomes "2000");</li>
+        <li>make different spellings the same: ₹ and "Rs" become "rupee", "20bn" becomes "20 billion", "5 cr" becomes "5 crore";</li>
+        <li>replace punctuation with spaces (English letters, digits and Hindi letters <code>ऀ-ॿ</code> are kept);</li>
+        <li>split into words; keep words longer than 2 letters (or 2-digit numbers like "20") that aren't stop-words.</li>
+      </ul>
+      <p><b>similarity()</b> is the <b>overlap coefficient</b>: shared words ÷ size of the smaller list. A short headline and a long one about the same event still score high.</p>
+      <p><b>queryFrom()</b> picks the 8 most frequent important words to search with, keeping their original order.</p>
+    </div>
+  </div>
+
+  <h3><span class="ln">L64–94</span>Reading RSS feeds</h3>
+  <div class="block">
+<pre><code><span class="k">function</span> decode(s) { …turn &amp;amp;lt; &amp;amp;amp; etc. back into characters… }
+<span class="k">function</span> stripTags(s) { <span class="k">return</span> decode(s).replace(/&lt;[^&gt;]+&gt;/g, ' ')… }
+<span class="k">function</span> tag(block, name) { …text between &lt;name&gt; and &lt;/name&gt;… }
+<span class="k">export function</span> parseRSS(xml) {
+  <span class="k">for</span> (<span class="k">const</span> m <span class="k">of</span> xml.matchAll(/&lt;item&gt;([\s\S]*?)&lt;\/item&gt;/gi)) {
+    …title, outlet (&lt;source&gt;), url (&lt;link&gt;), date (&lt;pubDate&gt;), snippet…
+    <span class="k">if</span> (title.endsWith(' - ' + outlet)) title = title.slice(0, -(outlet.length + 3));
+  }
+}</code></pre>
+    <div class="explain">
+      <p><b>RSS</b> is the XML format news sites use to publish headlines. Each article is an <code>&lt;item&gt;</code>.</p>
+      <ul>
+        <li><b>decode()</b> turns HTML codes such as <code>&amp;amp;</code> back into normal characters.</li>
+        <li><b>stripTags()</b> removes any HTML tags and extra spaces.</li>
+        <li><b>parseRSS()</b> loops over every item and pulls out the title, outlet, link, date and description.</li>
+        <li>Google News adds " - Times of India" to every title; that suffix is cut off so it doesn't affect matching.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3><span class="ln">L96–143</span>Classifying sources and merging duplicates</h3>
+  <div class="block">
+<pre><code><span class="k">export const</span> isEstablished = item =&gt; has(ESTABLISHED, item);
+<span class="k">export const</span> isFactChecker = item =&gt; has(FACT_CHECKERS, item);
+<span class="k">const</span> OFFICIAL = /(^|[./])(gov\.in|nic\.in|rbi\.org\.in|…|un\.org|who\.int)(\/|$)/i;
+<span class="k">const</span> credible = i =&gt; isFactChecker(i) || isOfficial(i) || isEstablished(i);
+<span class="k">const</span> CLUSTER_STOP = <span class="k">new</span> Set('pib fact check viral video fake …'.split(' '));
+<span class="k">export function</span> clusterArticles(items, threshold = 0.5) {
+  <span class="k">for</span> (<span class="k">const</span> it <span class="k">of</span> items) {
+    …for each existing story, average similarity(it, every member)…
+    <span class="k">if</span> (best &amp;&amp; bestScore &gt;= threshold) best.items.push(it);
+    <span class="k">else</span> clusters.push({ members: [t], items: [it] });
+  }
+}
+<span class="k">function</span> dedupeSources(items) { …one entry per URL + its badges… }</code></pre>
+    <div class="explain">
+      <ul>
+        <li><b>isEstablished / isFactChecker</b> check whether a source's address or name contains any entry from those lists.</li>
+        <li><b>OFFICIAL</b> matches government web addresses: gov.in, nic.in, RBI, UN, WHO and similar.</li>
+        <li><b>credible</b> means any of the three.</li>
+        <li><b>CLUSTER_STOP</b> ignores fact-check words like "viral video fake" while merging. Otherwise every unrelated PIB debunk would join one story.</li>
+        <li><b>clusterArticles()</b> is the <b>duplicate merger</b>. Each article joins the existing story it is most similar to, if the average similarity to that story's members is 0.5 or more; otherwise it starts a new story. Using the <i>average</i> stops stories slowly chaining together.</li>
+        <li><b>dedupeSources()</b> lists each URL once, with its official, fact-checker and established flags.</li>
+      </ul>
+      <div class="viva"><b>Say it in the viva</b>"Duplicate merging is a greedy clustering algorithm on headline words using the overlap coefficient, threshold 0.5, compared against the average of all members to prevent chaining."</div>
+    </div>
+  </div>
+
+  <h3><span class="ln">L145–203</span>Story status and the debrief</h3>
+  <div class="block">
+<pre><code><span class="k">function</span> storyStatus(sources, items) {
+  <span class="k">const</span> debunked = items.filter(i =&gt; DEBUNK.test(i.title));
+  <span class="k">if</span> (debunked.some(credible)) <span class="k">return</span> 'false';
+  <span class="k">if</span> (debunked.length) <span class="k">return</span> 'disputed';
+  <span class="k">if</span> (sources.some(s =&gt; s.established || s.official)) <span class="k">return</span> 'corroborated';
+  <span class="k">if</span> (<span class="k">new</span> Set(sources.map(s =&gt; s.outlet)).size &gt;= 3) <span class="k">return</span> 'reported';
+  <span class="k">return</span> 'unverified';
+}
+<span class="k">function</span> debriefFor(items, sources) {
+  …lead = most representative headline…
+  parts: snippet · "Found in N articles from M outlets (including …) between D1 and D2."
+       · "Also headlined: …" · "X describes the claim as fake or misleading."
+}</code></pre>
+    <div class="explain">
+      <p><b>storyStatus()</b> checks the rules in order, and the first match wins:</p>
+      <ul>
+        <li>a <b>credible</b> source uses a debunk word → <b>false</b>;</li>
+        <li>only less credible sites use a debunk word → <b>disputed</b>;</li>
+        <li>any established outlet (TOI, The Hindu…) or official source reports it → <b>corroborated</b>;</li>
+        <li>3 or more different outlets → <b>reported</b>;</li>
+        <li>otherwise → <b>unverified</b>.</li>
+      </ul>
+      <p><b>debriefFor()</b> writes the summary only from facts about the articles: how many, from which outlets, the date range, other headlines, and who called it fake. It never invents anything.</p>
+    </div>
+  </div>
+
+  <h3><span class="ln">L205–252</span>Relevance filter</h3>
+  <div class="block">
+<pre><code><span class="k">export function</span> stem(w) {
+  <span class="k">const</span> cut = w.replace(/(ations|ation|ings|ing|ions|ion|ies|es|ed|ly|s)$/, '');
+  <span class="k">return</span> (cut.length &gt;= 3 ? cut : w).slice(0, 6);
+}
+<span class="k">export function</span> anchorsFrom(text) { …numbers of 3+ digits and Capitalised names… }
+<span class="k">const</span> NOT_NEWS = /(wikipedia\.org|youtube\.com|facebook\.com|…)$/i;
+<span class="k">export function</span> relevantItems(items, query, anchors = []) {
+  …for each claim word: df = how many results contain it
+     weight = Math.log(1 + total / df)          <span class="c">// IDF</span>
+  score = (weights of claim words in this headline) / (all weights)
+  keep if score &gt;= 0.55 (all words for 1–2 word claims) and it has an anchor
+}</code></pre>
+    <div class="explain">
+      <ul>
+        <li><b>stem()</b> cuts word endings and keeps the first 6 letters, so "discontinuing" and "discontinuation" both become "discon" and match.</li>
+        <li><b>anchorsFrom()</b> finds the names and numbers the claim depends on ("RBI", "Sitharaman", "2000"). A result must mention at least one.</li>
+        <li><b>NOT_NEWS</b> drops Wikipedia, YouTube, social media and document sites.</li>
+        <li><b>relevantItems()</b> uses <b>IDF</b> (inverse document frequency): a word found in almost every result, like "RBI", counts little, while the word that makes the claim specific, like "repo", counts a lot. A result is kept only if it covers at least 55% of that weight.</li>
+      </ul>
+      <div class="viva"><b>Say it in the viva</b>"Relevance uses TF-IDF-style weighting with light stemming, so off-topic articles that share only common words are filtered out. In our test the share of on-topic links went from 86% to 98%."</div>
+    </div>
+  </div>
+
+  <h3><span class="ln">L254–297</span>buildReport(): the verdict</h3>
+  <div class="block">
+<pre><code><span class="k">export function</span> buildReport(query, items, factItems = [], anchors = []) {
+  <span class="k">const</span> keep = <span class="k">new</span> Set(relevantItems([...items, ...factItems], query, anchors));
+  <span class="k">const</span> clusters = clusterArticles(all).map(…dedupeSources…).sort(<span class="c">/* biggest first */</span>);
+  <span class="k">const</span> stories = clusters.slice(0, 6).map(…headline, debrief, status, sources…);
+  <span class="k">const</span> factChecks = …fact-checks not already in a story…;
+  <span class="k">const</span> top = stories.find(st =&gt; st.status === 'false')
+          || stories.find(st =&gt; st.status === 'corroborated') || stories[0];
+  …verdict: none → unverified · false → likely false · corroborated → likely true
+            (medium confidence if official or 2+ outlets, else low) · disputed · unverified
+  <span class="k">return</span> { mode:'keyword', query, verdict, stories, factChecks, searchedCount };
+}</code></pre>
+    <div class="explain">
+      <ul>
+        <li>This puts it all together: filter for relevance, merge, sort the biggest stories first, and keep at most 6.</li>
+        <li><b>top</b> picks the story that decides the verdict: a false story first, then a corroborated one, otherwise the biggest.</li>
+        <li>Confidence is <b>medium</b> with an official source or 2+ established outlets, and <b>low</b> with just one.</li>
+        <li>The result is one object that <code>render()</code> in the browser knows how to draw.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3><span class="ln">L299–384</span>News sources and keywordSearch()</h3>
+  <div class="block">
+<pre><code><span class="k">export function</span> parseBingRSS(xml) { …real URL from Bing's click-tracker (?url=…)… }
+<span class="k">export function</span> parseGDELT(json) { …JSON articles, English/Hindi only, date to ISO… }
+<span class="k">async function</span> fetchText(url, ms = 8000) { …fetch with an 8 s timeout (AbortController)… }
+<span class="k">export function</span> extractArticle(html) { …og:title / &lt;title&gt; and og:description… }
+<span class="k">export async function</span> keywordSearch(input) {
+  <span class="k">if</span> (input is a link) text = title + description of that page;
+  <span class="k">const</span> q = queryFrom(text);
+  providers = Google News RSS, Bing News RSS, GDELT;
+  jobs: each provider with q, and Google/Bing again with q + ' fact check';
+  <span class="k">const</span> settled = <span class="k">await</span> Promise.allSettled(jobs);
+  <span class="k">if</span> (none succeeded) <span class="k">throw new</span> Error('All news sources are unreachable…');
+  …remove duplicate URLs, keep fact-check items that really are fact-checks…
+  <span class="k">return</span> buildReport(q, items, factItems, anchors);
+}</code></pre>
+    <div class="explain">
+      <ul>
+        <li><b>parseBingRSS()</b>: Bing wraps every link in a tracking address; the real article address is taken from its <code>url=</code> part.</li>
+        <li><b>parseGDELT()</b>: GDELT answers in JSON. Only English and Hindi articles are kept, and its date format is converted.</li>
+        <li><b>fetchText()</b> downloads a page but gives up after 8 seconds (<code>AbortController</code>), so one slow site can't freeze the check. It sends a normal browser identity so sites answer.</li>
+        <li><b>extractArticle()</b>: for a pasted link, reads the page's headline and description from its meta tags.</li>
+        <li><b>keywordSearch()</b> runs 5 searches <b>at the same time</b>. <code>Promise.allSettled</code> waits for all of them, even if some fail, which is why the site still works when Google blocks us.</li>
+      </ul>
+      <div class="viva"><b>Say it in the viva</b>"Searches run in parallel with <code>Promise.allSettled</code> and 8-second timeouts, so the system degrades gracefully: if Google News blocks the server, Bing and GDELT still return results."</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== CLAUDE -->
+<section class="file" id="claude">
+  <h2>lib/claudeAnalyze.js <code>99 lines</code></h2>
+  <p class="meta">Deep AI mode. Runs only when ANTHROPIC_API_KEY is set in Vercel. Not yet tested live.</p>
+
+  <h3><span class="ln">L1–28</span>Setup and the instructions for the AI</h3>
+  <div class="block">
+<pre><code><span class="k">import</span> Anthropic <span class="k">from</span> '@anthropic-ai/sdk';
+<span class="k">import</span> { isEstablished, isFactChecker } <span class="k">from</span> './newsSearch.js';
+<span class="k">const</span> MODEL = process.env.CLAUDE_MODEL || 'claude-opus-5-5';
+<span class="k">const</span> SYSTEM = `You are the fact-checking engine of SecureIndia…
+1. If it is a link, fetch it…  2. Search the live web…
+3. Group what you find into distinct stories…  4. Judge each story on evidence only…
+Only list source URLs that appeared in your search or fetch results…
+Finish with ONLY this JSON inside &lt;result&gt;&lt;/result&gt; tags…`;</code></pre>
+    <div class="explain">
+      <ul>
+        <li><b>L3</b> loads Anthropic's official library for talking to Claude.</li>
+        <li><b>L4</b> reuses the outlet lists from keyword mode, so both modes badge sources the same way.</li>
+        <li><b>L6</b> the AI model to use. It can be changed with the <code>CLAUDE_MODEL</code> setting.</li>
+        <li><b>L8–28</b> <b>SYSTEM</b> is the "system prompt": the job description given to the AI. It says to search, merge duplicates into stories, judge only on evidence, never invent links, and reply in an exact JSON shape so the website can draw it.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3><span class="ln">L30–64</span>The anti-hallucination guard</h3>
+  <div class="block">
+<pre><code><span class="k">function</span> collectSeenUrls(content, seen) {
+  …add every URL from web_search results, web_fetch results and citations…
+}
+<span class="k">function</span> normalize(u) { …host + path, lowercase, no www, no trailing slash… }
+<span class="k">export function</span> parseResult(text) { …take the JSON between &lt;result&gt; tags and parse it… }
+<span class="k">export function</span> keepSeenSources(report, seen) {
+  <span class="k">const</span> ok = s =&gt; s &amp;&amp; s.url &amp;&amp; seen.has(normalize(s.url));
+  report.stories = report.stories.map(st =&gt; ({ ...st, sources: st.sources.filter(ok).map(tagged) }));
+  report.factChecks = report.factChecks.filter(ok).map(tagged);
+}</code></pre>
+    <div class="explain">
+      <ul>
+        <li><b>collectSeenUrls()</b> records every web address the AI <i>actually</i> received from its search and fetch tools.</li>
+        <li><b>normalize()</b> puts addresses in a standard form so small differences (www, a trailing slash) don't matter.</li>
+        <li><b>parseResult()</b> pulls the JSON out of the AI's answer.</li>
+        <li><b>keepSeenSources()</b> deletes any link in the answer that isn't in the "actually seen" list. So <b>a made-up link can never reach the user</b>.</li>
+      </ul>
+      <div class="viva"><b>Say it in the viva</b>"AI models can hallucinate sources, so we verify every cited URL against the pages the model actually retrieved, and drop anything it didn't."</div>
+    </div>
+  </div>
+
+  <h3><span class="ln">L66–99</span>claudeSearch(): calling the AI</h3>
+  <div class="block">
+<pre><code><span class="k">export async function</span> claudeSearch(input) {
+  <span class="k">const</span> client = <span class="k">new</span> Anthropic();
+  <span class="k">const</span> tools = [{ type:'web_search_20260209', name:'web_search', max_uses:8,
+                   user_location:{ type:'approximate', country:'IN' } }];
+  <span class="k">if</span> (isUrl) tools.push({ type:'web_fetch_20260209', name:'web_fetch', max_uses:3 });
+  <span class="k">for</span> (<span class="k">let</span> i = 0; i &lt; 4; i++) {
+    msg = <span class="k">await</span> client.beta.messages.create({ model: MODEL, max_tokens: 16000,
+      system: SYSTEM, output_config:{ effort:'medium' }, tools, messages,
+      betas:['server-side-fallback-2026-07-01'], fallbacks:'default' });
+    collectSeenUrls(msg.content, seen);
+    <span class="k">if</span> (msg.stop_reason !== 'pause_turn') <span class="k">break</span>;
+    messages.push({ role:'assistant', content: msg.content });
+  }
+  <span class="k">if</span> (msg.stop_reason === 'refusal') <span class="k">throw new</span> Error('The model declined…');
+  <span class="k">return</span> { mode:'deep', searchedCount: seen.size, ...keepSeenSources(parseResult(text), seen) };
+}</code></pre>
+    <div class="explain">
+      <ul>
+        <li><b>new Anthropic()</b> reads the API key from the server settings automatically. The key never goes to the browser.</li>
+        <li><b>web_search</b> lets the AI search the internet up to 8 times, with results tuned for India.</li>
+        <li><b>web_fetch</b> (only for pasted links) lets it open and read up to 3 pages.</li>
+        <li>The loop handles <b>pause_turn</b>: a long search can pause, so the answer so far is sent back to let it continue, at most 4 rounds.</li>
+        <li><b>effort: 'medium'</b> balances speed and depth. <b>fallbacks: 'default'</b> retries on a backup model if the main one declines.</li>
+        <li>If the AI refuses, an error is thrown, and <code>analyze.js</code> then falls back to keyword mode.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== CONFIG -->
+<section class="file" id="config">
+  <h2>Config files</h2>
+
+  <h3><span class="ln">package.json</span>Project settings</h3>
+  <div class="block">
+<pre><code>{
+  "name": "secureindia",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node dev-server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": { "@anthropic-ai/sdk": "^0.129.0" },
+  "engines": { "node": "&gt;=20" }
+}</code></pre>
+    <div class="explain">
+      <ul>
+        <li><code>"type": "module"</code> lets the code use modern <code>import</code>/<code>export</code>.</li>
+        <li><code>scripts</code>: <code>npm run dev</code> starts the local server, and <code>npm test</code> runs the tests.</li>
+        <li><code>dependencies</code>: the only outside library is Anthropic's SDK. Keyword mode needs none.</li>
+        <li><code>engines</code>: needs Node.js 20 or newer (for built-in <code>fetch</code> and the test runner).</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3><span class="ln">vercel.json</span>Hosting settings</h3>
+  <div class="block">
+<pre><code>{
+  "functions": { "api/analyze.js": { "maxDuration": 120 } },
+  "redirects": [ { "source": "/news.html", "destination": "/", "permanent": false } ]
+}</code></pre>
+    <div class="explain">
+      <ul>
+        <li><code>maxDuration: 120</code> lets the API run for up to 2 minutes, because a deep AI scan can take about a minute.</li>
+        <li>The redirect sends old <code>/news.html</code> links to the homepage.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3><span class="ln">dev-server.js</span>Local test server</h3>
+  <div class="block">
+<pre><code><span class="k">import</span> http <span class="k">from</span> 'node:http';
+<span class="k">import</span> handler <span class="k">from</span> './api/analyze.js';
+http.createServer(<span class="k">async</span> (req, res) =&gt; {
+  <span class="k">if</span> (req.url.startsWith('/api/analyze')) { …read body, add res.status/res.json… <span class="k">return</span> handler(req, res); }
+  …otherwise serve the file (index.html, images…) from the folder…
+}).listen(process.env.PORT || 3000);</code></pre>
+    <div class="explain">
+      <p>On Vercel the platform does this work. On a laptop, this small server does the same thing: API requests go to <code>handler</code>, and everything else is served as a file. It adds the <code>res.status()</code> and <code>res.json()</code> helpers that Vercel normally provides, so the same API code runs in both places.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== TESTS -->
+<section class="file" id="tests">
+  <h2>test/news.test.js <code>17 tests</code></h2>
+  <div class="block">
+<pre><code><span class="k">import</span> { test } <span class="k">from</span> 'node:test';
+<span class="k">import</span> assert <span class="k">from</span> 'node:assert/strict';
+test('same-story articles merge; different stories stay separate', () =&gt; {
+  <span class="k">const</span> clusters = clusterArticles(parseRSS(RSS));
+  assert.equal(clusters.length, 2);
+});
+test('keyword scan still works when Google News returns 503', <span class="k">async</span> () =&gt; {
+  globalThis.fetch = <span class="k">async</span> url =&gt; …fake Google 503, fake Bing/GDELT results…;
+  <span class="k">const</span> r = <span class="k">await</span> keywordSearch('upi tax for over 2000');
+  assert.equal(r.verdict.label, 'likely false or misleading');
+});</code></pre>
+    <div class="explain">
+      <p>Each <code>test()</code> runs a piece of code on known input and uses <code>assert</code> to check the answer. If an answer is wrong, the test fails.</p>
+      <ul>
+        <li>Feed parsing (Google, Bing, GDELT) and duplicate merging.</li>
+        <li>Verdict rules: fact-checks, official sources, and TOI alone.</li>
+        <li>Real-headline regression tests for bugs we fixed: unrelated debunks chaining, true news turning false, the Vashi blast.</li>
+        <li>Network failure: <code>fetch</code> is replaced with a fake, so tests can pretend Google is down without using the internet.</li>
+        <li>The anti-hallucination guard in deep mode.</li>
+      </ul>
+      <div class="viva"><b>Say it in the viva</b>"We have 17 automated tests, including regression tests built from real headlines for every bug we found, and a mock of the network to test the fallback when Google blocks us."</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== JS BASICS -->
+<section class="file" id="js">
+  <h2>JavaScript you'll see everywhere</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>You see</th><th>It means</th></tr></thead>
+    <tbody>
+      <tr><td><code>const x = 5</code> / <code>let y</code></td><td>A value that won't be reassigned / one that can change.</td></tr>
+      <tr><td><code>x =&gt; x * 2</code></td><td>An arrow function: a short way to write a function.</td></tr>
+      <tr><td><code>`Hello ${name}`</code></td><td>A template string: text with values inserted.</td></tr>
+      <tr><td><code>async</code> / <code>await</code></td><td>Wait for something slow (a download) without freezing the page.</td></tr>
+      <tr><td><code>try { } catch (e) { }</code></td><td>Try something; if it fails, handle the error instead of crashing.</td></tr>
+      <tr><td><code>import</code> / <code>export</code></td><td>Share functions between files.</td></tr>
+      <tr><td><code>new Set()</code> / <code>new Map()</code></td><td>A list with no duplicates / a key→value lookup. Both give instant lookups.</td></tr>
+      <tr><td><code>.map() .filter() .reduce() .some()</code></td><td>Transform each item / keep some items / combine into one value / check if any item matches.</td></tr>
+      <tr><td><code>/abc/i</code></td><td>A regular expression: a pattern for finding text. <code>i</code> ignores capital letters.</td></tr>
+      <tr><td><code>a || b</code> / <code>a &amp;&amp; b</code> / <code>c ? x : y</code></td><td>a if it has a value, else b / b only if a is true / if c then x else y.</td></tr>
+      <tr><td><code>...list</code></td><td>Spread: copy all items of a list or object into a new one.</td></tr>
+      <tr><td><code>process.env.NAME</code></td><td>A secret setting on the server (like the API key), never visible to the browser.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<footer>SecureIndia Fact Desk · SIH26188 · Team TECHNOVA · Line numbers refer to the <code>main</code> branch after pull request #5.</footer>
+</div>
+
+
+</html>
