@@ -164,3 +164,25 @@ test('regression: ordinary words like "no" or "fact check" are not a debunk', ()
   ]);
   assert.notEqual(r.verdict.label, 'likely false or misleading');
 });
+
+test('regression: local news reported by TOI alone is likely true, old unrelated blasts are dropped', () => {
+  const q = 'cylinder blasts in vashi, navi mumbai, 2 severely injured';
+  const r = buildReport(q, [
+    real('Two severely injured in cylinder blast at Navi Mumbai eatery, hospital glass shattered in Vashi', 'https://timesofindia.indiatimes.com/city/navi-mumbai/d'),
+    real('Navi Mumbai Blast: 2 People Suffer Severe Burn Injuries After LPG Cylinder Explosion', 'https://www.freepressjournal.in/a'),
+    real('At least 14 injured in cylinder blast at Mumbai Dharavi', 'https://www.deccanherald.com/x'),
+    real('Bengaluru: two dead, four injured in cylinder blast', 'https://www.deccanherald.com/y'),
+  ]);
+  assert.equal(r.verdict.label, 'likely true');
+  const urls = r.stories.flatMap(s => s.sources.map(x => x.url));
+  assert.ok(urls.some(u => u.includes('timesofindia')));
+  assert.ok(!urls.some(u => u.includes('deccanherald')));
+});
+
+test('a TOI article calling the claim fake still makes it false', () => {
+  const r = buildReport('RBI discontinuing 500 rupee notes', [
+    real('Fact check: Claim that RBI is discontinuing Rs 500 notes is fake', 'https://timesofindia.indiatimes.com/x'),
+    real('Is RBI discontinuing Rs 500 notes? Here is the truth', 'https://www.example.com/y'),
+  ]);
+  assert.equal(r.verdict.label, 'likely false or misleading');
+});
