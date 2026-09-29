@@ -121,7 +121,8 @@ function fmtDate(d){
 }
 
 function sourceItem(s){
-  const badges = (s.established ? '<span class="badge">established</span>' : '') +
+  const badges = (s.official ? '<span class="badge">official</span>' : '') +
+                 (s.established ? '<span class="badge">established</span>' : '') +
                  (s.factCheck ? '<span class="badge">fact-checker</span>' : '');
   const meta = [s.outlet, fmtDate(s.date)].filter(Boolean).map(esc).join(' · ');
   return `<li><a href="${esc(safeUrl(s.url))}" target="_blank" rel="noopener noreferrer">${esc(s.title || s.url)}</a>${badges}
